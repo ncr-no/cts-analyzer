@@ -1,0 +1,27 @@
+1,"file(2,integrity,1011110,_)","OR",0
+2,"RULE 29 (T1486 - Data Encrypted for Impact)","AND",0
+3,"dataBackup(1011110,no)","LEAF",1
+4,"system(2,authorization,1011110,root)","OR",0
+5,"RULE 41 (T1543.003 - Windows Service)","AND",0
+6,"installed(1011110,windows)","LEAF",1
+7,"file(2,integrity,1011110,registry)","OR",0
+8,"RULE 39 (T1112 - Modify Registry)","AND",0
+9,"restrictRegistryPermissions(no)","LEAF",1
+10,"account(2,authentication,root,_,1011110,windows)","OR",0
+11,"RULE 16 (T1110 - Brute Force)","AND",0
+12,"multifactorAuthentication(no)","LEAF",1
+13,"strongPasswordPolicy(no)","LEAF",1
+14,"account(2,authentication,user,_,1011110,windows)","OR",0
+15,"RULE 9 (T1078 - Valid Accounts)","AND",0
+16,"userAccountManagement(no)","LEAF",1
+17,"passwordPolicies(no)","LEAF",1
+18,"networkConnection(2,authentication,1011110,tcp,_)","OR",0
+19,"RULE 17 (T1046 - Network Service Scanning T1595 Active Scanning)","AND",0
+20,"networkService(1011110,_,tcp,_,_)","LEAF",1
+21,"accessAllowed(102551128,1011110,tcp,_)","LEAF",1
+22,"externalActor(102551128)","LEAF",1
+23,"hasAccount(_,user,1011110,windows)","LEAF",1
+24,"RULE 39 (T1112 - Modify Registry)","AND",0
+25,"RULE 31 (T1565.001 - Data Manipulation - Stored Data Manipulation)","AND",0
+26,"encryptedDisk(1011110,no)","LEAF",1
+27,"RULE 33 (T1485 - Data Destruction)","AND",0

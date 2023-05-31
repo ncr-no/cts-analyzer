@@ -1,0 +1,378 @@
+% Rules conform to the STRIDE methodology
+
+/******************************************************/
+/****         Predicates                          *****/
+/******************************************************/
+
+% external actor is default predicate where position is hostname outside of the organization
+% or special value Internet
+primitive(externalActor(_position)).
+
+% primitive predicates that describe properties of assets
+primitive(vulnerableAsset(_host, _asset, _vulID, _attackVector, _impact)).
+primitive(accessAllowed(_source, _destination, _protocol, _port)).
+primitive(inNetwork(_host, _network)).
+primitive(networkService(_host, _serviceName, _protocol, _port, _username)).
+primitive(installed(_h, _program)).
+primitive(softwareOpensFiles(_host, _software)).
+primitive(hasAccount(_identity, _account, _host, _application)).
+primitive(defaultAccount(_account, _host, _application)).
+primitive(userCanClick(_user)).
+primitive(mailOnWeb(_person, _mail)).
+
+% added
+primitive(plaintextProtocol(_port)).
+
+% countermeasures, _bool should has value yes/no
+primitive(inboundTrafficFiltering(_network, _bool)).
+primitive(homoglyphDetection(_bool)).
+primitive(urlAnalysis(_bool)).
+primitive(senderMTAReputationAnalysis(_bool)).
+primitive(senderReputationAnalysis(_bool)).
+primitive(strongPasswordPolicy(_bool)).
+primitive(multifactorAuthentication(_bool)).
+primitive(accountLocking(_bool)).
+primitive(dataBackup(_host, _bool)).
+primitive(encryptedDisk(_host, _bool)).
+primitive(softwareUpdate(_bool)).
+primitive(userTraining(_bool)).
+primitive(passwordPolicies(_bool)).
+primitive(userAccountManagement(_bool)).
+primitive(restrictRegistryPermissions(_bool)).
+
+% derived predicates that describe controlled assets and to what extend they are controlled
+derived(networkConnection(_level, _property, _host, _protocol, _port)).
+derived(account(_level, _property, _username, _identity, _host, _application)).
+derived(person(_level, _property, _identity)).
+derived(system(_level, _property, _host, _user)).
+derived(application(_level, _property, _host, _program)).
+derived(file(_level, _property, _host, _filename)).
+derived(sentEmail(_level, _property, _address, _identity)).
+derived(openFile(_level, _property, _host)).
+
+meta(cvss(_vulID, _ac)).
+meta(attackGoal(_)).
+meta(advances(_, _)).
+
+/******************************************************/
+/****         Tabling Predicates                  *****/
+/*   All derived predicates should be tabled          */
+/******************************************************/
+
+:- table networkConnection/5.
+:- table account/6.
+:- table person/3.
+:- table system/4.
+:- table application/4.
+:- table file/4.
+:- table sentEmail/4.
+
+
+/******************************************************/
+/****         Interaction Rules                   *****/
+/******************************************************/
+
+/********* T1190 - Exploit Public-Facing Application ******/
+interaction_rule(
+    (application(2, confidentiality, H, Software) :-
+      vulnerableAsset(H, Software, _, remote, gainPrivOnApp),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
+
+interaction_rule(
+    (application(2, integrity, H, Software) :-
+      vulnerableAsset(H, Software, _, remote, gainPrivOnApp),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
+
+interaction_rule(
+    (application(2, confidentiality, H, Software) :-
+      vulnerableAsset(H, Software, _, remote, appConfidentialityLoss),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
+
+interaction_rule(
+    (application(2, integrity, H, Software) :-
+      vulnerableAsset(H, Software, _, remote, appIntegrityLoss),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
+
+interaction_rule(
+    (system(2, confidentiality, H, _) :-
+      vulnerableAsset(H, Software, _, remote, systemConfidentialityLoss),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application',
+    1.0)).
+
+interaction_rule(
+    (system(2, integrity, H, _) :-
+      vulnerableAsset(H, Software, _, remote, systemIntegrityLoss),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
+
+/********* T1133 - External Remote Services ******/
+interaction_rule(
+    (system(2, authentication, Host, _) :-
+      application(2, authentication, Host, ssh)),
+    rule_desc('T1133 - External Remote Services', 1.0)).
+
+/********* T1566.001 - Spearphishing Attachment ******/
+interaction_rule(
+    (sentEmail(2, authentication, MailAddress, Person) :-
+      sentEmail(1, _, MailAddress, Person),
+      homoglyphDetection(no),
+      urlAnalysis(no),
+      senderMTAReputationAnalysis(no),
+      senderReputationAnalysis(no)),
+    rule_desc('T1566.001 - Spearphishing Attachment', 1.0)).
+
+/********* T1078.001 - Default Accounts ******/
+interaction_rule(
+    (account(2, authentication, User, _, Host, _) :-
+        defaultAccount(User, Host, ssh),
+        hasAccount(_, User, Host, _),
+        networkConnection(2, authentication, Host, _, _)),
+    rule_desc('T1078.001 - Default Accounts', 1.0)).
+
+/********* T1078 - Valid Accounts ******/
+interaction_rule(
+    (account(2, authentication, User, _, Host, _) :-
+        hasAccount(_, User, Host, _),
+        networkConnection(2, authentication, Host, _, _),
+        passwordPolicies(no),
+        userAccountManagement(no)),
+    rule_desc('T1078 - Valid Accounts', 1.0)).
+
+/********* T1204.002 - User Execution - Malicious File ******/
+interaction_rule(
+    (openFile(2, authentication, Host) :-
+      sentEmail(2, authentication, MailAddress, Victim),
+      userCanClick(Victim),
+      hasAccount(Victim, Username, Host, _),
+      userTraining(no)),
+    rule_desc('T1204.002 - User Execution - Malicious File', 1.0)).
+
+/********* T1203 - Exploitation for Client Execution ******/
+interaction_rule(
+    (system(2, authorization, Host, user) :-
+      vulnerableAsset(Host, Software, _, _, gainUserPrivileges),
+      installed(Host, Software),
+      openFile(2, authentication, Host),
+      softwareOpensFiles(Host, Software)),
+    rule_desc('T1203 - Exploitation for Client Execution', 1.0)).
+
+interaction_rule(
+    (system(2, authorization, H, root) :-
+      vulnerableAsset(H, Software, _, _, gainRootPrivileges),
+      installed(Host, Software),
+      account(2, authentication, User, Victim, Host, _)),
+    rule_desc('T1203 - Exploitation for Client Execution', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, H, Software) :-
+      vulnerableAsset(H, Software, _, _, gainPrivOnApp),
+      installed(Host, Software),
+      account(2, authentication, User, Victim, Host, _)),
+    rule_desc('T1203 - Exploitation for Client Execution', 1.0)).
+
+/********* T1068 - Exploitation for Privilege Escalation ******/
+% attacker must have user privileges
+interaction_rule(
+    (system(2, authorization, H, root) :-
+      account(2, authentication, Username, _, H, _),
+      installed(H, Software),
+      vulnerableAsset(H, Software, _, Range, privEscalation),
+      softwareUpdate(no)),
+    rule_desc('T1068 - Exploitation for Privilege Escalation', 1.0)).
+
+interaction_rule(
+    (system(2, authorization, H, root) :-
+      system(2, authorization, H, Username),
+      installed(H, Software),
+      vulnerableAsset(H, Software, _, Range, privEscalation),
+      softwareUpdate(no)),
+    rule_desc('T1068 - Exploitation for Privilege Escalation', 1.0)).
+
+/********* T1110 - Brute Force ******/
+interaction_rule(
+    (account(2, authentication, root, _, H, windows) :-
+        account(2, authentication, user, _, H, windows),
+        strongPasswordPolicy(no),
+        multifactorAuthentication(no)),
+    rule_desc('T1110 - Brute Force', 1.0)).
+
+/********* T1046 - Network Service Scanning ******/
+interaction_rule(
+    (networkConnection(2, authentication, Host1, Protocol, Port) :-
+      externalActor(H2),
+      accessAllowed(H2, Host1, Protocol, Port),
+      networkService(Host1, Software, Protocol, Port, _)),
+    rule_desc('T1046 - Network Service Scanning T1595 Active Scanning', 1.0)).
+
+/********* T1018 - Remote System Discovery ******/
+interaction_rule(
+    (system(1, _, Host2, _) :-
+      system(2, authorization, Host1, _),
+      inNetwork(Host1, Network),
+      inNetwork(Host2, Network),
+      Host1 \== Host2),
+    rule_desc('T1018 - Remote System Discovery', 1.0)).
+
+/********* T1021.004 - Remote Services ******/
+interaction_rule(
+    (networkConnection(2, authentication, Host, Protocol, Port) :-
+	  system(1, _, Host, _),
+      networkService(Host, ssh, Protocol, Port, _)),
+     rule_desc('T1021.004 - Remote Services - SSH', 0.5)).
+
+interaction_rule(
+    (application(2, authentication, Host, Software) :-
+      account(2, authentication, User, Victim, Host, Software),
+      system(1, _, Host, _),
+      networkService(Host, Software, Protocol, Port, _)),
+    rule_desc('T1021 - Remote Services', 0.5)).
+
+/********* T1005 - Data from Local System ******/
+interaction_rule(
+    (system(2, confidentiality, Host, _) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1005 - Data from Local System', 1.0)).
+
+interaction_rule(
+    (file(2, confidentiality, Host, _) :-
+      file(1, _, Host, _),
+      system(2, authorization, Host, _)),
+    rule_desc('T1005 - Data from Local System', 1.0)).
+
+interaction_rule(
+    (system(2, confidentiality, Host, _) :-
+      system(2, authentication, Host, _)),
+    rule_desc('T1005 - Data from Local System', 1.0)).
+
+interaction_rule(
+    (file(2, confidentiality, Host, _) :-
+      file(1, _, Host, _),
+      system(2, authentication, Host, _)),
+    rule_desc('T1005 - Data from Local System', 1.0)).
+
+/********* T1499.004 - Endpoint DoS - Application or System Exploitation ******/
+interaction_rule(
+    (application(2, availability, Host, Software) :-
+      vulnerableAsset(Host, Software, _, remote, appAvailabilityLoss),
+      networkService(Host, Software, Protocol, Port, _),
+      networkConnection(2, authentication, Host, Protocol, Port)),
+    rule_desc('T1499.004 - Endpoint DoS - Application or System Exploitation', 1.0)).
+
+interaction_rule(
+    (system(2, availability, Host, _) :-
+      vulnerableAsset(Host, Software, _, remote, systemAvailabilityLoss),
+      networkService(Host, Software, Protocol, Port, _),
+      networkConnection(2, authentication, Host, Protocol, Port)),
+    rule_desc('T1499.004 - Endpoint DoS - Application or System Exploitation', 1.0)).
+
+/********* T1498 - Network denial service ******/
+interaction_rule(
+    (system(2, availability, Host, _) :-
+        networkConnection(2, authentication, Host, Protocol, Port),
+        inNetwork(Host, N),
+        inboundTrafficFiltering(N, no)),
+    rule_desc('T1498 - Network denial service', 1.0)).
+
+/********* T1489 - Service Stop ******/
+interaction_rule(
+    (application(2, availability, Host, Software) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1489 - Service Stop', 1.0)).
+
+/********* T1486 - Data Encrypted for Impact ******/
+interaction_rule(
+    (file(2, integrity, Host, _)  :-
+      system(2, authorization, Host, root),
+      dataBackup(Host, no)),
+    rule_desc('T1486 - Data Encrypted for Impact', 1.0)).
+
+interaction_rule(
+    (file(2, availability, Host, _)  :-
+      system(2, authorization, Host, root),
+      dataBackup(Host, no)),
+    rule_desc('T1486 - Data Encrypted for Impact', 1.0)).
+
+/********* T1565.001 - Data Manipulation - Stored Data Manipulation ******/
+interaction_rule(
+    (file(2, integrity, Host, _) :-
+      system(2, authorization, Host, _),
+      encryptedDisk(Host, no)),
+    rule_desc('T1565.001 - Data Manipulation - Stored Data Manipulation', 1.0)).
+
+interaction_rule(
+    (file(2, availability, Host, _) :-
+      system(2, authorization, Host, _),
+      encryptedDisk(Host, no)),
+    rule_desc('T1565.001 - Data Manipulation - Stored Data Manipulation', 1.0)).
+
+/********* T1485 - Data Destruction ******/
+interaction_rule(
+    (file(2, integrity, Host, _)  :-
+      system(2, authorization, Host, root),
+      dataBackup(Host, no)),
+    rule_desc('T1485 - Data Destruction', 1.0)).
+
+interaction_rule(
+    (file(2, availability, Host, _)  :-
+      system(2, authorization, Host, root),
+      dataBackup(Host, no)),
+    rule_desc('T1485 - Data Destruction', 1.0)).
+
+/********* T1595 - Active Scanning ******/
+interaction_rule(
+    (networkConnection(2, authentication, Host, Protocol, Port) :-
+      externalActor(internet),
+      accessAllowed(internet, Host, Protocol, Port),
+      networkService(Host, _, Protocol, Port, _)),
+    rule_desc('T1595 - Active Scanning', 1.0)).
+
+/********* T1083 - File and Directory Discovery ******/
+interaction_rule(
+    (file(1, _, Host, _) :-
+      system(2, authentication, Host, _)),
+    rule_desc('T1083 - File and Directory Discovery', 1.0)).
+
+interaction_rule(
+    (file(1, _, Host, _) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1083 - File and Directory Discovery', 1.0)).
+
+/********* T1594 - Search Victim-Owned Websites ******/
+interaction_rule(
+    (sentEmail(1, _, MailAddress, Victim) :-
+      mailOnWeb(Victim, MailAddress),
+      externalActor(internet)),
+    rule_desc('T1594 - Search Victim-Owned Websites', 1.0)).
+
+/********** T1112 - Modify Registry *******************/
+interaction_rule(
+    (file(2, integrity, Host, registry) :-
+      installed(Host, windows),
+      account(2, authentication, _, _, Host, windows),
+      restrictRegistryPermissions(no)),
+    rule_desc('T1112 - Modify Registry', 1.0)).
+
+/********** T1070.004 - File Deletion ******************/
+interaction_rule(
+    (file(2, availability, Host, _) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1070.004 - File Deletion', 1.0)).
+
+/*************** T1543.003 - Windows Service *****************/
+interaction_rule(
+    (system(2, authorization, Host, root) :-
+      file(2, integrity, Host, registry),
+      installed(Host, windows)),
+    rule_desc('T1543.003 - Windows Service', 1.0)).
+/***********/

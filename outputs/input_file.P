@@ -1,0 +1,78 @@
+networkService(10_11_1_10, _, tcp, _, _).
+accountLocking(no).
+inboundTrafficFiltering(10_11_1_0_24, no).
+inboundTrafficFiltering(10_11_3_0_24, no).
+inboundTrafficFiltering(10_11_2_0_24, no).
+inboundTrafficFiltering(10_11_4_0_24, no).
+inboundTrafficFiltering(10_11_9_0_24, no).
+accessAllowed(10_11_4_172, 10_11_1_10, tcp, _).
+accessAllowed(10_11_4_138, 10_11_2_113, tcp, _).
+accessAllowed(10_11_4_174, 10_11_1_10, tcp, _).
+networkService(10_11_2_113, _, tcp, _, _).
+networkService(10_11_4_172, _, tcp, 80, _).
+inNetwork(10_11_3_10, 10_11_3_0_24).
+accessAllowed(10_255_1_128, 10_11_2_113, _, _).
+accessAllowed(10_11_2_113, 10_11_4_138, tcp, 22).
+accessAllowed(10_11_3_10, 10_11_2_113, tcp, _).
+accessAllowed(10_11_3_10, 10_11_9_133, tcp, _).
+attackGoal(file(2, integrity, 10_11_1_10, _)).
+accessAllowed(10_11_4_174, 10_11_9_133, tcp, _).
+accessAllowed(10_11_4_172, 10_11_2_113, tcp, _).
+networkService(10_11_9_133, _, tcp, _, _).
+accessAllowed(10_11_4_172, 10_11_9_133, tcp, _).
+encryptedDisk(10_11_3_10, no).
+encryptedDisk(10_11_2_113, no).
+encryptedDisk(10_11_9_133, no).
+encryptedDisk(10_11_4_174, no).
+encryptedDisk(10_11_4_172, no).
+encryptedDisk(10_11_4_138, no).
+encryptedDisk(10_11_1_10, no).
+plaintextProtocol(69).
+dataBackup(10_11_9_133, no).
+dataBackup(10_11_1_10, no).
+dataBackup(10_11_2_113, no).
+dataBackup(10_11_4_172, no).
+dataBackup(10_11_4_138, no).
+dataBackup(10_11_3_10, no).
+dataBackup(10_11_4_174, no).
+accessAllowed(10_11_4_138, 10_11_1_10, tcp, _).
+softwareUpdate(no).
+accessAllowed(10_11_3_10, 10_11_1_10, tcp, _).
+accessAllowed(10_11_2_113, 10_11_4_172, tcp, 80).
+accessAllowed(10_11_4_138, 10_11_9_133, tcp, _).
+inNetwork(10_11_4_172, 10_11_4_0_24).
+networkService(10_11_4_138, _, tcp, 22, _).
+inNetwork(10_11_4_138, 10_11_4_0_24).
+inNetwork(10_11_4_174, 10_11_4_0_24).
+homoglyphDetection(no).
+accessAllowed(10_11_4_174, 10_11_2_113, tcp, _).
+externalActor(10_255_1_128).
+plaintextProtocol(25).
+installed(10_11_1_10, windows).
+externalActor(internet).
+multifactorAuthentication(no).
+accessAllowed(10_255_1_128, 10_11_9_133, _, _).
+senderReputationAnalysis(no).
+inNetwork(10_11_2_113, 10_11_2_0_24).
+inNetwork(10_11_1_10, 10_11_1_0_24).
+plaintextProtocol(20).
+plaintextProtocol(110).
+urlAnalysis(no).
+accessAllowed(10_255_1_128, 10_11_1_10, _, _).
+inNetwork(10_11_9_133, 10_11_9_0_24).
+strongPasswordPolicy(no).
+installed(10_11_9_133, windows).
+plaintextProtocol(80).
+plaintextProtocol(23).
+senderMTAReputationAnalysis(no).
+installed(10_11_2_113, windows).
+hasAccount(_, root, 10_11_9_133, windows).
+userTraining(no).
+%hasAccount(_, _, 10_11_1_10, windows).
+hasAccount(_, user, 10_11_1_10, windows).
+%hasAccount(_, _, 10_11_9_133, windows).
+hasAccount(_, root, 10_11_2_113, windows).
+%hasAccount(_, _, 10_11_2_113, windows).
+passwordPolicies(no).
+userAccountManagement(no).
+restrictRegistryPermissions(no).
