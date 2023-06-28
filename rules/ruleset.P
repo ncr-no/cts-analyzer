@@ -224,6 +224,14 @@ interaction_rule(
       Host1 \== Host2),
     rule_desc('T1018 - Remote System Discovery', 1.0)).
 
+interaction_rule(
+    (system(1, _, Host2, _) :-
+      account(2, authentication, _, _, Host1, _),
+      inNetwork(Host1, Network),
+      inNetwork(Host2, Network),
+      Host1 \== Host2),
+    rule_desc('T1018 - Remote System Discovery', 1.0)).
+
 /********* T1021.004 - Remote Services ******/
 interaction_rule(
     (networkConnection(2, authentication, Host, Protocol, Port) :-
@@ -237,6 +245,23 @@ interaction_rule(
       system(1, _, Host, _),
       networkService(Host, Software, Protocol, Port, _)),
     rule_desc('T1021 - Remote Services', 0.5)).
+
+/********* T1563 - Remote Service Session Hijacking *****/
+interaction_rule(
+    (networkConnection(2, authentication, Host, Protocol, Port) :-
+      accessAllowed(Host1, Host2, Protocol, Port),
+      system(1, _, Host2, _),
+      system(2, authorization, Host1, root),
+      networkService(Host2, Software, Protocol, Port, _)),
+    rule_desc('T1563 - Remote Service Session Hijacking', 0.5)).
+
+interaction_rule(
+    (networkConnection(2, authentication, Host, Protocol, Port) :-
+      accessAllowed(Host1, Host2, Protocol, Port),
+      system(1, _, Host2, _),
+      account(2, authentication, root, _, Host1, _),
+      networkService(Host2, Software, Protocol, Port, _)),
+    rule_desc('T1563 - Remote Service Session Hijacking', 0.5)).
 
 /********* T1005 - Data from Local System ******/
 interaction_rule(

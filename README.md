@@ -72,7 +72,6 @@ the DEFCON levels. This functionality is provided by the following commands.
 
 ```python
 from evidence_path import process_restricted_files
-
 process_restricted_files()
 ```
 

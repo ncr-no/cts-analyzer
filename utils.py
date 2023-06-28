@@ -5,29 +5,6 @@ P = ['Reconnaissance', 'Resource Development', 'Initial Access', 'Execution', 'P
      'Defense Evasion', 'Credential Access', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
      'Exfiltration', 'Impact']
 
-# Hasse diagram for kill chain phases
-# , (comma) means that vertices have the same edges
-# -----------------------------------
-#           Reconnaissance, Resource Development
-#               /                \
-#    Credential Access       Initial Access
-#             |              /         \
-# Persistence, Defense Evasion   Execution, Privilege Escalation
-#              \                 /
-#               \               /
-#                \             /
-#                 \           /
-#                  \         /
-#                   Discovery
-#                      |
-#                 Lateral Movement
-#                  /            \
-#             Collection         \
-#                 |               \
-#         Command and Control      \
-#                 |                 \
-#            Exfiltration         Impact
-
 # This dictionary contains for each phase its successor phases
 partially_ordered_phases = {
     'Reconnaissance': ['Credential Access', 'Initial Access', 'Execution', 'Privilege Escalation', 'Persistence',
@@ -36,15 +13,13 @@ partially_ordered_phases = {
     'Resource Development': ['Credential Access', 'Initial Access', 'Execution', 'Privilege Escalation', 'Persistence',
                              'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
                              'Impact', 'Exfiltration'],
-    'Credential Access': ['Persistence', 'Defense Evasion', 'Discovery',
-                          'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Initial Access': ['Execution', 'Privilege Escalation', 'Persistence', 'Defense Evasion', 'Discovery',
-                       'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Persistence': ['Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Defense Evasion': ['Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Execution': ['Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Privilege Escalation': ['Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Impact',
-                             'Exfiltration'],
+    'Credential Access': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
+    'Initial Access': ['Execution', 'Privilege Escalation', 'Persistence', 'Defense Evasion', 'Credential Access',
+                       'Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
+    'Persistence': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
+    'Defense Evasion': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
+    'Execution': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
+    'Privilege Escalation': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
     'Discovery': ['Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
     'Lateral Movement': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
     'Collection': ['Command and Control', 'Exfiltration'],
@@ -100,14 +75,11 @@ mapping_function = {
     'T1486': ['Impact'],              # Data Encrypted for Impact
     'T1565.001': ['Impact'],          # Data Manipulation - Stored Data Manipulation
     'T1485': ['Impact'],               # Data Destruction
-    # added techniques
-    # ==========================================
     'T1562.001': ['Defense Evasion'],  # Impair Defenses: Disable or Modify Tools
-    'T1112': ['Defense Evasion'], # Modify Registry
-    'T1070.004': ['Defense Evasion'], # File Deletion
-    'T1548.003': ['Privilege Escalation', 'Defense Evasion'], # Sudo and Sudo Caching
-    'T1543.003': ['Persistence', 'Privilege Escalation'] # Windows Service
-    # ==========================================
+    'T1112': ['Defense Evasion'],  # Modify Registry
+    'T1070.004': ['Defense Evasion'],  # File Deletion
+    'T1548.003': ['Privilege Escalation', 'Defense Evasion'],  # Sudo and Sudo Caching
+    'T1543.003': ['Persistence', 'Privilege Escalation']  # Windows Service
     }
 
 

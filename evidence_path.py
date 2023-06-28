@@ -5,25 +5,24 @@ from utils import partially_ordered_phases
 from copy import deepcopy
 import ipaddress
 from final_report import final_evaluation
+from custom_detection import check_encryption_technique
 
+# The following values were used during the table-top exercise in May 2023.
+# -------------------------------------------------------------------------
+CRITICAL_IPS = ['10.11.1.10', '10.11.1.20', '10.77.77.77']
+TECHNIQUE_FILENAMES = ['inputs/wazuh-alerts.csv']
+COMMUNICATION_FILENAMES = []
 
-# 1-quest-machine: 10.11.9.133
-# 1-admin-machine: 10.11.1.10
-# 2-employee-mach: 10.11.2.113
-CRITICAL_IPS = ['10.11.1.10', '10.11.2.113', '10.11.9.133']
-
-# The following files are obtained from SIEM
-TECHNIQUE_FILENAMES = ['inputs/agent_10_11_9_133.csv', 'inputs/agent_10_11_1_10.csv',
-                       'inputs/agent_10_11_2_113.csv']
-COMMUNICATION_FILENAMES = ['inputs/network_communication.csv']
-
-# Each row of the .csv file contains specific attributes. The following are used
-TECHNIQUE_INDEX = 95
-AGENT_IP_INDEX = 2
-MITRE_ID_INDEX = 93
-TIMESTAMP_INDEX = -1
-SRC_IP_INDEX = 29
-DEST_IP_INDEX = 5
+# Default indices for CSV files, they are updated by searching for the column name
+# in relevant procedures. Wazuh always changes count of columns and their order.
+# CSVs cannot be used in any case in production.
+TECHNIQUE_INDEX = 75
+AGENT_IP_INDEX = 102
+MITRE_ID_INDEX = 76
+TIMESTAMP_INDEX = 30
+SRC_IP_INDEX = 102
+DEST_IP_INDEX = 102
+# -------------------------------------------------------------------------
 
 
 MAPPING_OF_TECHNIQUES = {
@@ -36,7 +35,13 @@ MAPPING_OF_TECHNIQUES = {
     "T1040": ["Credential Access", "Discovery"],
     "T1562.001": ["Defense Evasion"],
     "T1548.003": ["Privilege Escalation", "Defense Evasion"],
-    "T1543.003": ["Persistence", "Privilege Escalation"]
+    "T1543.003": ["Persistence", "Privilege Escalation"],
+    "T1136": ["Persistence"],
+    "T1098": ["Persistence"],
+    "T1484": ["Defense Evasion", "Privilege Escalation"],
+    "T1531": ["Impact"],
+    "T1486": ["Impact"],
+    "T1550.002": ["Defense Evasion", "Lateral Movement"]
 }
 
 NAMES_OF_TECHNIQUES = {
@@ -49,7 +54,13 @@ NAMES_OF_TECHNIQUES = {
     "T1040": "Network Sniffing",
     "T1562.001": "Disable or Modify Tools",
     "T1548.003": "Sudo and Sudo Caching",
-    "T1543.003": "Windows Service"
+    "T1543.003": "Windows Service",
+    "T1136": "Create Account",
+    "T1098": "Account Manipulation",
+    "T1484": "Domain Policy Modification",
+    "T1531": "Account Access Removal",
+    "T1486": "Data Encrypted for Impact",
+    "T1550.002": "Pass the Hash"
 }
 
 
@@ -109,7 +120,7 @@ def check_starting_tactics(tactics):
     """
     allowed_tactics = []
     for tactic in tactics:
-        if tactic in ['Reconnaissance', 'Resource Development', 'Initial Access', 'Credential Access']:
+        if tactic in ['Reconnaissance', 'Resource Development', 'Initial Access']:
             allowed_tactics.append(tactic)
     return allowed_tactics
 
@@ -136,11 +147,20 @@ def process_file_containing_techniques(technique_filename, output_dictionary):
     """
     with open(technique_filename, newline='') as csvfile:
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        first_row = next(csvreader)
+        TECHNIQUE_INDEX = first_row.index('_source.rule.mitre.technique')
+        AGENT_IP_INDEX = first_row.index('_source.agent.ip')
+        MITRE_ID_INDEX = first_row.index('_source.rule.mitre.id')
+        TIMESTAMP_INDEX = first_row.index('_source.timestamp')
+
         for row in csvreader:
-            if row[TECHNIQUE_INDEX] != 'rule.mitre.technique' and row[TECHNIQUE_INDEX] != "-":
+            if row[TECHNIQUE_INDEX] != 'rule.mitre.technique' and row[TECHNIQUE_INDEX] != "-" and \
+                    row[TECHNIQUE_INDEX] != '_source.rule.mitre.technique' and row[TECHNIQUE_INDEX] != ' ':
                 if row[AGENT_IP_INDEX] not in output_dictionary:
                     output_dictionary[row[AGENT_IP_INDEX]] = []
-                for mitre_id in list(row[MITRE_ID_INDEX].split(', ')):
+
+                # modified version of for loop condition
+                for mitre_id in json.loads(row[MITRE_ID_INDEX]):
                     output_dictionary[row[AGENT_IP_INDEX]].append({
                         "rule.mitre.technique": [NAMES_OF_TECHNIQUES[mitre_id]],
                         "rule.mitre.id": [mitre_id],
@@ -149,6 +169,13 @@ def process_file_containing_techniques(technique_filename, output_dictionary):
                         "data.src_ip": "-",
                         "data.dest_ip": "-"
                     })
+
+    # add techniques detected by custom detection
+    technique_dictionary = check_encryption_technique()
+    for agent_ip in technique_dictionary:
+        if agent_ip not in output_dictionary:
+            output_dictionary[agent_ip] = []
+        output_dictionary[agent_ip].append(technique_dictionary[agent_ip])
 
 
 def process_file_containing_communication(communication_filename, output_dictionary):
@@ -253,6 +280,11 @@ def create_sequences(input_dictionary):
                         correct_phases = False
                         if sequence[last_index]["rule.mitre.id"] == event["rule.mitre.id"]:
                             continue
+
+                        # Lateral movement is addressed during path matching.
+                        # If an attack path contains the lateral movement tactic, then the matching tests a sequence of
+                        # alerts from one host before the lateral movement and a sequence of alerts from the second host
+                        # after the lateral movement.
                         for start_tactic in sequence[last_index]["rule.mitre.tactic"]:
                             for end_tactic in event["rule.mitre.tactic"]:
                                 if end_tactic in partially_ordered_phases[start_tactic] or \
@@ -293,7 +325,7 @@ def create_sequences(input_dictionary):
                                     else:
                                         current_index -= 1
                                         # not all phases can begin kill chain
-                                        if current_index == 0 and [{
+                                        if current_index == -1 and [{
                                             "rule.mitre.id": event["rule.mitre.id"],
                                             "rule.mitre.technique": event["rule.mitre.technique"],
                                             "rule.mitre.tactic": event["rule.mitre.tactic"]}] not in sequences[
@@ -335,8 +367,6 @@ def process_restricted_files():
         json.dump(output_dictionary, output_file, indent=4)
 
     # step 4 - find possible attack paths
-    # for now, it will create the longest allowable sequences
-    # for now, only on one host and without any communication among systems
     sequences = create_sequences(output_dictionary)
 
     # step 5 - check sequences and their kill chain phases
@@ -355,15 +385,11 @@ def process_restricted_files():
                     next_technique = sequence[next_index]
                     check_techniques(current_technique, next_technique)
 
-    print("These valid sequence of alerts were present in the data:")
+    print("These valid sequences of alerts were present in the data:")
     pprint(sequences)
-
-    # Future work - remove sequences of at least two techniques that appear multiple times
-    # remove not only phases but also techniques that does not fit the requirements
-    # solved events represent end of path, e.g., verified as false positives by analysts
 
     # step 6 - final evaluation
     # the evaluation will contain IP, level and techniques (with attack path in data) as an indication
     print("The following output contains attack paths.")
-    print("The return value contains DEFCON levels for IP addresses.")
+    print("The return value contains severity levels for IP addresses.")
     return final_evaluation(sequences, CRITICAL_IPS)

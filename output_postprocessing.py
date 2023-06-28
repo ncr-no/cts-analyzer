@@ -245,9 +245,19 @@ def get_attack_path_techniques(graph, attacker_vertex, goals):
     paths = []
     for goal in goals:
         for path in nx.algorithms.all_simple_paths(graph, attacker_vertex, goal):
-            current_path = []
+            current_path = {"vertices": [], "lateral_movement": False, "ip_addresses": []}
             for vertex in path:
                 if graph.nodes[vertex]['label'] == 'TECHNIQUE':
-                    current_path.append(graph.nodes[vertex])
+                    current_path["vertices"].append(graph.nodes[vertex])
+                    if 'Lateral Movement' in graph.nodes[vertex]['phases']:
+                        current_path["lateral_movement"] = True
+
+                else:
+                    # this part could be alternatively solved by regexes
+                    line_parts = graph.nodes[vertex]['description'].split(",")
+                    for part in line_parts:
+                        if part.isdigit() and part not in current_path["ip_addresses"]:
+                            current_path["ip_addresses"].append(part)
+
             paths.append(current_path)
     return paths
