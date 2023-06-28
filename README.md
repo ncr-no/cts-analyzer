@@ -1,6 +1,6 @@
 # Severity-Based Triage of Possible Incidents Using Kill Chain Attack Graphs: Supplementary Materials
 
-This repository contains proof-of-concept implementation of an approach from paper _Severity-based Triage of Possible Incidents
+This repository contains proof-of-concept implementation of an approach from paper _Severity-Based Triage of Possible Incidents
 Using Kill Chain Attack Graphs_.
 
 If you use or further modify this implementation, please use 
