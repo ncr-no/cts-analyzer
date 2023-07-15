@@ -42,8 +42,19 @@ and countermeasures.
 * `utils.py` contains utilities that return set of phases and mapping function of techniques. They also check kill 
 chain phases.
 
+## Mapping of Modules
+Mapping of names from the CTS Analyzer architecture to filenames used in supplementary materials:
+|Name in the Paper|Python Module(s)|
+|:----------------|:----------------|
+|Input converter|input_convertor.py|
+|MulVAL attack graph generator|generator.py, run_mulval.py|
+|Attack graph post-processing|output_postprocessing.py|
+|Custom detection|custom_detection.py|
+|Evidence path constructor|evidence_path.py|
+|Reporting tool|final_report.py|
+|&mdash;|utils.py|
 
-## How to use
+# How to use
 First, it is necessary to create input files for MulVAL. 
 If your system contains created directory `/tmp/mulval_dir`, you can 
 execute the following commands. Otherwise, create the folder with name `/tmp/mulval_dir` before executing 
