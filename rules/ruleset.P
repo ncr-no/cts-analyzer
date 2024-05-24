@@ -19,9 +19,8 @@ primitive(hasAccount(_identity, _account, _host, _application)).
 primitive(defaultAccount(_account, _host, _application)).
 primitive(userCanClick(_user)).
 primitive(mailOnWeb(_person, _mail)).
-
-% added
-primitive(plaintextProtocol(_port)).
+primitive(setuid(_host, _software)).
+primitive(setgid(_host, _software)).
 
 % countermeasures, _bool should has value yes/no
 primitive(inboundTrafficFiltering(_network, _bool)).
@@ -49,6 +48,10 @@ derived(application(_level, _property, _host, _program)).
 derived(file(_level, _property, _host, _filename)).
 derived(sentEmail(_level, _property, _address, _identity)).
 derived(openFile(_level, _property, _host)).
+derived(authentication(_level, _property, _hostname, _username)).
+derived(domainPolicySettings(_level, _property, _host, _filename)).
+derived(copyFile(_level, _property, _host, _filename)).
+derived(credential(_level, _property, _username, _identity, _host, _application)).
 
 meta(cvss(_vulID, _ac)).
 meta(attackGoal(_)).
@@ -66,6 +69,8 @@ meta(advances(_, _)).
 :- table application/4.
 :- table file/4.
 :- table sentEmail/4.
+:- table authentication/4.
+:- table domainPolicySettings/4.
 
 
 /******************************************************/
@@ -112,6 +117,13 @@ interaction_rule(
 interaction_rule(
     (system(2, integrity, H, _) :-
       vulnerableAsset(H, Software, _, remote, systemIntegrityLoss),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
+
+interaction_rule(
+    (system(2, authorization, H, _) :-
+      vulnerableAsset(H, Software, _, _, _),
       networkService(H, Software, Protocol, Port, _),
       networkConnection(2, authentication, H, Protocol, Port)),
     rule_desc('T1190 - Exploit Public-Facing Application', 1.0)).
@@ -170,15 +182,15 @@ interaction_rule(
 interaction_rule(
     (system(2, authorization, H, root) :-
       vulnerableAsset(H, Software, _, _, gainRootPrivileges),
-      installed(Host, Software),
-      account(2, authentication, User, Victim, Host, _)),
+      installed(H, Software),
+      account(2, authentication, User, Victim, H, _)),
     rule_desc('T1203 - Exploitation for Client Execution', 1.0)).
 
 interaction_rule(
     (application(2, authorization, H, Software) :-
       vulnerableAsset(H, Software, _, _, gainPrivOnApp),
-      installed(Host, Software),
-      account(2, authentication, User, Victim, Host, _)),
+      installed(H, Software),
+      account(2, authentication, User, Victim, H, _)),
     rule_desc('T1203 - Exploitation for Client Execution', 1.0)).
 
 /********* T1068 - Exploitation for Privilege Escalation ******/
@@ -199,6 +211,14 @@ interaction_rule(
       softwareUpdate(no)),
     rule_desc('T1068 - Exploitation for Privilege Escalation', 1.0)).
 
+interaction_rule(
+    (system(2, authorization, H, root) :-
+      credential(1, _, User, _, H, _),
+      installed(H, Software),
+      vulnerableAsset(H, Software, _, Range, privEscalation),
+      softwareUpdate(no)),
+    rule_desc('T1068 - Exploitation for Privilege Escalation', 1.0)).
+
 /********* T1110 - Brute Force ******/
 interaction_rule(
     (account(2, authentication, root, _, H, windows) :-
@@ -207,36 +227,35 @@ interaction_rule(
         multifactorAuthentication(no)),
     rule_desc('T1110 - Brute Force', 1.0)).
 
-/********* T1046 - Network Service Scanning ******/
 interaction_rule(
-    (networkConnection(2, authentication, Host1, Protocol, Port) :-
-      externalActor(H2),
-      accessAllowed(H2, Host1, Protocol, Port),
-      networkService(Host1, Software, Protocol, Port, _)),
-    rule_desc('T1046 - Network Service Scanning T1595 Active Scanning', 1.0)).
+    (account(2, authentication, _, _, Host, Program) :-
+        application(1, _, Host, Program),
+        strongPasswordPolicy(no),
+        multifactorAuthentication(no)),
+    rule_desc('T1110 - Brute Force', 1.0)).
 
 /********* T1018 - Remote System Discovery ******/
 interaction_rule(
     (system(1, _, Host2, _) :-
       system(2, authorization, Host1, _),
       inNetwork(Host1, Network),
-      inNetwork(Host2, Network),
-      Host1 \== Host2),
+      inNetwork(Host2, Network)),
     rule_desc('T1018 - Remote System Discovery', 1.0)).
+
 
 interaction_rule(
     (system(1, _, Host2, _) :-
       account(2, authentication, _, _, Host1, _),
       inNetwork(Host1, Network),
       inNetwork(Host2, Network),
-      Host1 \== Host2),
+      Host1 =\= Host2),
     rule_desc('T1018 - Remote System Discovery', 1.0)).
 
 /********* T1021.004 - Remote Services ******/
 interaction_rule(
-    (networkConnection(2, authentication, Host, Protocol, Port) :-
+    (networkConnection(2, authentication, Host, Protocol, 22) :-
 	  system(1, _, Host, _),
-      networkService(Host, ssh, Protocol, Port, _)),
+      networkService(Host, _, Protocol, 22, _)),
      rule_desc('T1021.004 - Remote Services - SSH', 0.5)).
 
 interaction_rule(
@@ -248,7 +267,7 @@ interaction_rule(
 
 /********* T1563 - Remote Service Session Hijacking *****/
 interaction_rule(
-    (networkConnection(2, authentication, Host, Protocol, Port) :-
+    (networkConnection(2, authentication, Host2, Protocol, Port) :-
       accessAllowed(Host1, Host2, Protocol, Port),
       system(1, _, Host2, _),
       system(2, authorization, Host1, root),
@@ -256,7 +275,7 @@ interaction_rule(
     rule_desc('T1563 - Remote Service Session Hijacking', 0.5)).
 
 interaction_rule(
-    (networkConnection(2, authentication, Host, Protocol, Port) :-
+    (networkConnection(2, authentication, Host2, Protocol, Port) :-
       accessAllowed(Host1, Host2, Protocol, Port),
       system(1, _, Host2, _),
       account(2, authentication, root, _, Host1, _),
@@ -357,8 +376,8 @@ interaction_rule(
 /********* T1595 - Active Scanning ******/
 interaction_rule(
     (networkConnection(2, authentication, Host, Protocol, Port) :-
-      externalActor(internet),
-      accessAllowed(internet, Host, Protocol, Port),
+      externalActor(untrusted_internet),
+      accessAllowed(untrusted_internet, Host, Protocol, Port),
       networkService(Host, _, Protocol, Port, _)),
     rule_desc('T1595 - Active Scanning', 1.0)).
 
@@ -372,6 +391,13 @@ interaction_rule(
     (file(1, _, Host, _) :-
       system(2, authorization, Host, _)),
     rule_desc('T1083 - File and Directory Discovery', 1.0)).
+
+/********* T1046 - Network Service Discovery *********/
+interaction_rule(
+    (application(1, _, Host, Program) :-
+        installed(Host, Program),
+        system(2, authorization, Host, _)),
+    rule_desc('T1046 - Network Service Discovery', 1.0)).
 
 /********* T1594 - Search Victim-Owned Websites ******/
 interaction_rule(
@@ -400,4 +426,489 @@ interaction_rule(
       file(2, integrity, Host, registry),
       installed(Host, windows)),
     rule_desc('T1543.003 - Windows Service', 1.0)).
+
+interaction_rule(
+    (system(2, authorization, Host, root) :-
+        account(2, authentication, _, _, Host, Program)),
+    rule_desc('T1543 - Create or Modify System Process', 1.0)).
 /***********/
+
+/******* T1548 - Abuse Elevation Control Mechanism *************/
+/* T1548.001 - Abuse Elevation Control Mechanism: Setuid and Setgid */
+interaction_rule(
+    (system(2, authorization, Host, root) :-
+      application(2, authentication, Host, Software),
+      setuid(Host, Software),
+      system(2, authorization, Host, user)),
+    rule_desc('T1548.001 - Abuse Elevation Control Mechanism: Setuid and Setgid', 1.0)).
+
+interaction_rule(
+    (system(2, authorization, Host, root) :-
+      application(2, authentication, Host, Software),
+      setgid(Host, Software),
+      system(2, authorization, Host, user)),
+    rule_desc('T1548.001 - Abuse Elevation Control Mechanism: Setuid and Setgid', 1.0)).
+
+/***********/
+
+/******* T1212 - Exploitation for Credential Access ************/
+/* Exploitation is intended to be followed by local accounts technique */
+interaction_rule(
+    (application(2, authorization, H, Software) :-
+      vulnerableAsset(H, Software, _, remote, gainPrivOnApp),
+      networkService(H, Software, Protocol, Port, _),
+      networkConnection(2, authentication, H, Protocol, Port)),
+    rule_desc('T1212 - Exploitation for Credential Access', 1.0)).
+
+interaction_rule(
+    (account(2, authorization, user, _, H, _) :-
+      account(2, authentication, user, _, H, _),
+      installed(H, Software),
+      vulnerableAsset(H, Software, _, Range, gainUserPrivileges),
+      softwareUpdate(no)),
+    rule_desc('T1068 - Exploitation for Privilege Escalation', 1.0)).
+/***********/
+
+/******* T1534 - Internal Spearphishing ************************/
+interaction_rule(
+    (sentEmail(2, authentication, MailAddress, Person) :-
+      sentEmail(1, _, MailAddress, Person)),
+    rule_desc('T1566.001 - Spearphishing Attachment', 1.0)).
+/**********/
+
+/******* T1499.004 - Endpoint DoS - Service Exhaustion Flood ***************/
+interaction_rule(
+    (application(2, availability, Host, Software) :-
+      networkService(Host, Software, Protocol, Port, _),
+      networkConnection(2, authentication, Host, Protocol, Port),
+      inboundTrafficFiltering(Network, no),
+      inNetwork(Host, Network)),
+    rule_desc('T1499.004 - Endpoint DoS - Service Exhaustion Flood', 1.0)).
+
+/********** T1531 - Account Access Removal *********************************/
+interaction_rule(
+    (authentication(2, integrity, Host, User) :-
+      system(2, authorization, Host, root),
+      hasAccount(_, User, Host, _)),
+    rule_desc('T1531 - Account Access Removal', 1.0)).
+
+/********** T1484 - Domain Policy Modification *****************************/
+interaction_rule(
+    (domainPolicySettings(2, integrity, Host, Filename) :-
+      system(2, authorization, dc, _),
+      inNetwork(dc, Network),
+      inNetwork(Host, Network)),
+    rule_desc('T1484 - Domain Policy Modification', 1.0)).
+    
+/********** T1136 - Create Account *****************************************/
+interaction_rule(
+    (authentication(2, integrity, Host, User) :-
+      system(2, authorization, Host, root),
+      hasAccount(_, User, Host, _)),
+    rule_desc('T1136 - Create Account', 1.0)).
+
+/********** T1098 - Account Manipulation ***********************************/
+interaction_rule(
+    (authentication(2, integrity, Host, User) :-
+      system(2, authorization, Host, root),
+      hasAccount(_, User, Host, _)),
+    rule_desc('T1098 - Account Manipulation', 1.0)).
+
+/********** T1048 - Exfiltration Over Alternative Protocol ******************/
+/* default protocols, such as DNS are always present */
+interaction_rule(
+    (file(2, confidentiality, Host, _) :-
+      system(2, authorization, Host, _),
+      copyFile(2, authorization, Host, _)),
+    rule_desc('T1048 - Exfiltration Over Alternative Protocol', 1.0)).
+
+/*********** T1105 - Ingress Tool Transfer ***********************************/
+interaction_rule(
+    (application(2, authorization, Host, Software) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1105 - Ingress Tool Transfer', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, Software) :-
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1105 - Ingress Tool Transfer', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, Software) :-
+      application(2, authorization, Host, powerShell),
+      Software =\= powerShell),
+    rule_desc('T1105 - Ingress Tool Transfer', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, Software) :-
+      application(2, authorization, Host, cli),
+      Software =\= cli),
+    rule_desc('T1105 - Ingress Tool Transfer', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, Software) :-
+      file(2, integrity, Host, registry),
+      application(2, authorization, Host, Service),
+      Service =\= Software),
+    rule_desc('T1105 - Ingress Tool Transfer', 1.0)).
+
+/*********** T1496 - Resource Hijacking ***********************************/
+interaction_rule(
+    (system(2, availability, Host, _) :-
+      application(2, authorization, Host, xmrig)),
+    rule_desc('T1496 - Resource Hijacking', 1.0)).
+
+/*********** T1556.003 - Pluggable Authentication Modules ***********************************/
+interaction_rule(
+    (file(2, integrity, Host, so_file) :-
+      system(2, authorization, Host, root)),
+    rule_desc('T1556.003 - Pluggable Authentication Modules', 1.0)).
+
+interaction_rule(
+    (file(2, integrity, Host, so_file) :-
+      account(2, authentication, root, _, Host, _)),
+    rule_desc('T1556.003 - Pluggable Authentication Modules', 1.0)).
+
+interaction_rule(
+    (account(2, authentication, user, _, Host, _) :-
+      system(2, authorization, Host, root)),
+    rule_desc('T1556.003 - Pluggable Authentication Modules', 1.0)).
+
+interaction_rule(
+    (account(2, authentication, user, _, Host, _) :-
+      account(2, authentication, root, _, Host, _)),
+    rule_desc('T1556.003 - Pluggable Authentication Modules', 1.0)).
+
+/*********** T1570 - Lateral Tool Transfer ***********************************/
+interaction_rule(
+    (application(2, authorization, Host2, ssh) :-
+      networkService(Host2, ssh, tcp, 22, _),
+      networkConnection(Host1, Host2, tcp, 22),
+      system(2, authorization, Host1, _)),
+    rule_desc('T1570 - Lateral Tool Transfer', 1.0)).
+
+/*********** T1059.001 -  Command and Scripting Interpreter: PowerShell***********************************/
+interaction_rule(
+    (account(2, authorization, user, _, Host2, _) :-
+      installed(Host2, windows),
+      networkConnection(Host1, Host2, tcp, 23),
+      hasAccount(_, user, Host2, _)),
+    rule_desc('T1059.001 - Command and Scripting Interpreter - PowerShell', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, powerShell) :-
+      installed(Host2, windows),
+      account(2, authentication, User, _, Host, _)),
+    rule_desc('T1059.001 - Command and Scripting Interpreter - PowerShell', 1.0)).
+
+/*********** T1059.004 - Command and Scripting Interpreter: Unix Shell ***********************************/
+interaction_rule(
+    (application(2, authorization, Host2, shell) :-
+      installed(Host2, linux),
+      networkConnection(Host1, Host2, tcp, 22),
+      account(2, authentication, _, _, Host1, _)),
+    rule_desc('T1059.004 - Command and Scripting Interpreter - Unix Shell', 1.0)).
+
+/*********** T1555.004 - Windows Credential Manager ***********************************/
+interaction_rule(
+    (credential(2, confidentiality, _, _, Host, _) :-
+      installed(Host, windows),
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1555.004 - Windows Credential Manager', 1.0)).
+
+interaction_rule(
+    (account(2, authentication, User2, _, Host, _) :-
+      installed(Host, windows),
+      account(2, authentication, User1, _, Host, _),
+      User1 =\= User2,
+      application(2, authorization, Host, powerShell)),
+    rule_desc('T1555.004 - Windows Credential Manager', 1.0)).
+
+interaction_rule(
+    (account(2, authentication, _, _, Host, _) :-
+      installed(Host, windows),
+      application(2, authorization, Host, powerShell)),
+    rule_desc('T1555.004 - Windows Credential Manager', 1.0)).
+
+/*********** T1569.002 - Service Execution ***********************************/
+interaction_rule(
+    (application(2, authorization, Host, service) :-
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1569.002 - Service Execution', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, service) :-
+      account(2, authentication, _, _, Host, _),
+      application(2, authorization, Host, powerShell)),
+    rule_desc('T1569.002 - Service Execution', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, service) :-
+      account(2, authentication, _, _, Host, _),
+      application(2, authorization, Host, cli)),
+    rule_desc('T1569.002 - Service Execution', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, service) :-
+      application(2, authorization, Host, powerShell)),
+    rule_desc('T1569.002 - Service Execution', 1.0)).
+
+interaction_rule(
+    (application(2, authorization, Host, service) :-
+      application(2, authorization, Host, cli)),
+    rule_desc('T1569.002 - Service Execution', 1.0)).
+
+/*********** T1564 - Hide Artifacts ***********************************/
+interaction_rule(
+    (application(2, authorization, Host, service) :-
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1564 - Hide Artifacts', 1.0)).
+
+/*********** T1564.002 - Hidden Users ***********************************/
+interaction_rule(
+    (file(2, integrity, Host, registry) :-
+      account(2, authentication, _, _, Host, _),
+      installed(Host, windows)),
+    rule_desc('T1564.002 - Hidden Users', 1.0)).
+
+/*********** T1047 - Windows Management Instrumentation ***********************************/
+interaction_rule(
+    (application(2, authorization, Host, process) :-
+      installed(Host, windows),
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1047 - Windows Management Instrumentation', 1.0)).
+
+/*********** T1082 - System Information Discovery ***********************************/
+interaction_rule(
+    (system(1, _, Host, _) :- 
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1082 - System Information Discovery', 1.0)).
+
+interaction_rule(
+    (account(1, _, user, Identity2, Host, _) :- 
+      account(2, authentication, user, Identity1, Host, _),
+      Identity1 =\= Identity2),
+    rule_desc('T1082 - System Information Discovery', 1.0)).
+
+interaction_rule(
+    (account(1, _, user, Identity2, Host, _) :- 
+      application(2, authorization, Host, _)),
+    rule_desc('T1082 - System Information Discovery', 1.0)).
+
+interaction_rule(
+    (account(1, _, user, Identity2, Host, _) :- 
+      system(2, authorization, Host, _)),
+    rule_desc('T1082 - System Information Discovery', 1.0)).
+
+/*********** T1136.001 - Create Account: Local Account ***********************************/
+interaction_rule(
+    (account(2, authentication, _, _, Host, _) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1136.001 - Create Account - Local Account', 1.0)).
+
+interaction_rule(
+    (account(2, authentication, User, Identity2, Host, _) :-
+      account(2, authentication, User, Identity1, Host, _),
+      Identity1 =\= Identity2),
+    rule_desc('T1136.001 - Create Account - Local Account', 1.0)).
+
+/*********** T1003.008 - /etc/passwd and /etc/shadow ***********************************/
+interaction_rule(
+    (credential(1, _, User, _, Host, _) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1003.008 - /etc/passwd and /etc/shadow', 1.0)).
+
+interaction_rule(
+    (credential(1, _, User, Identity1, Host, _) :-
+      account(2, authentication, User, Identity2, Host, _),
+      Identity1 =\= Identity2),
+    rule_desc('T1003.008 - /etc/passwd and /etc/shadow', 1.0)).
+
+/*********** T1574.010 - Services File Permissions Weakness ***********************************/
+interaction_rule(
+    (account(2, authentication, _, _, Host, _) :-
+      application(2, authorization, Host, service)),
+    rule_desc('T1574.010 - Services File Permissions Weakness', 1.0)).
+
+interaction_rule(
+    (account(2, authentication, _, _, Host, _) :-
+      application(2, authorization, Host, service),
+      system(2, authorization, Host, root)),
+    rule_desc('T1574.010 - Services File Permissions Weakness', 1.0)).
+
+/*********** T1033 - System Owner/User Discovery ***********************************/
+interaction_rule(
+    (system(1, _, Host, _) :- 
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1033 - System Owner/User Discovery', 1.0)).
+
+interaction_rule(
+    (system(1, _, Host, _) :- 
+      system(2, authorization, Host, root)),
+    rule_desc('T1033 - System Owner/User Discovery', 1.0)).
+
+interaction_rule(
+    (file(1, _, Host, _) :-
+      account(2, authentication, _, _, Host, _)),
+    rule_desc('T1033 - System Owner/User Discovery', 1.0)).
+
+interaction_rule(
+    (file(1, _, Host, _) :-
+      system(2, authorization, Host, root)),
+    rule_desc('T1033 - System Owner/User Discovery', 1.0)).
+
+interaction_rule(
+    (account(1, _, _, Identity2, Host, _) :-
+      account(2, authentication, _, Identity1, Host, _),
+      Identity1 =\= Identity2),
+    rule_desc('T1033 - System Owner/User Discovery', 1.0)).
+
+interaction_rule(
+    (account(1, _, _, Identity2, Host, _) :-
+      system(2, authorization, Host, root)),
+    rule_desc('T1033 - System Owner/User Discovery', 1.0)).
+
+/*********** T1078.003 - Valid Accounts: Local Accounts ***********************************/
+interaction_rule(
+    (account(2, authentication, _, _, Host, _) :-
+      system(2, authorization, Host, _)),
+    rule_desc('T1078.003 - Valid Accounts - Local Accounts', 1.0)).    
+
+/*********** T1560.001 - Archive via Utility ***********************************/
+interaction_rule(
+    (copyFile(2, authorization, Host, _) :-
+      system(2, authorization, Host, _),
+      file(1, _, Host, _)),
+    rule_desc('T1560.001 - Archive via Utility', 1.0)).
+
+/*********** T1529 - System Shutdown / Reboot ***********************************/
+interaction_rule(
+    (system(2, availability, Host, _) :-
+      system(2, authorization, Host, root)),
+    rule_desc('T1529 - System Shutdown / Reboot', 1.0)).
+
+/*********** T1078.001 - Valid Accounts: Default Accounts **************************************/
+interaction_rule(
+    (account(2, authentication, User, guest, Host, _) :-
+        hasAccount(_, User, Host, _),
+        application(2, authorization, Host, powerShell)),
+    rule_desc('T1078.001 - Default Accounts', 1.0)).
+
+/************ T1112 - Modify Registry ********************************************************/
+interaction_rule(
+    (file(2, integrity, Host, registry) :-
+      installed(Host, windows),
+      account(2, authentication, _, _, Host, windows),
+      restrictRegistryPermissions(no),
+      application(2, authorization, Host, powerShell)),
+    rule_desc('T1112 - Modify Registry', 1.0)).
+
+interaction_rule(
+    (file(2, integrity, Host, registry) :-
+      installed(Host, windows),
+      account(2, authentication, _, _, Host, windows),
+      restrictRegistryPermissions(no),
+      application(2, authorization, Host, cli)),
+    rule_desc('T1112 - Modify Registry', 1.0)).
+
+/************** T1110 - Brute Force ************************************************************/
+interaction_rule(
+    (account(2, authentication, domainUser, _, Host2, windows) :-
+        account(2, authentication, user, _, Host2, windows),
+        strongPasswordPolicy(no),
+        multifactorAuthentication(no),
+        networkService(Host1, activeDirectory, _, _),
+        networkConnection(2, authentication, Host1, _, _)),
+    rule_desc('T1110 - Brute Force', 1.0)).
+
+/*************** T1531 - Account Access Removal **************************************************/
+interaction_rule(
+    (authentication(2, integrity, Host, User) :-
+      system(2, authorization, Host, root),
+      hasAccount(_, User, Host, _),
+      account(1, _, User, _, Host, _)),
+    rule_desc('T1531 - Account Access Removal', 1.0)).
+
+interaction_rule(
+    (authentication(2, integrity, Host, User) :-
+      application(2, authorization, Host, _),
+      hasAccount(_, User, Host, _),
+      account(1, _, User, _, Host, _)),
+    rule_desc('T1531 - Account Access Removal', 1.0)).
+
+interaction_rule(
+    (authentication(2, integrity, Host, User) :-
+      account(2, authentication, User, Identity1, Host, _),
+      hasAccount(_, User, Host, _),
+      account(1, _, User, Identity2, Host, _),
+      Identity1 =\= Identity2),
+    rule_desc('T1531 - Account Access Removal', 1.0)).
+
+/**************** T1489 - Service Stop ***********************************************************/
+interaction_rule(
+    (application(2, availability, Host, Software1) :-
+      application(2, authorization, Host, Software2),
+      Software1 =\= Software2),
+    rule_desc('T1489 - Service Stop', 1.0)).
+
+interaction_rule(
+    (application(2, availability, Host, Software1) :-
+      account(2, authentication, User, _, Host, _)),
+    rule_desc('T1489 - Service Stop', 1.0)).
+
+/***************** T1548.003 - Abuse Elevation Control Mechanism: Sudo and Sudo Caching ************/
+interaction_rule(
+    (system(2, authorization, Host, root) :-
+      file(2, integrity, Host, sudoers),
+      account(2, authentication, root, _, Host, _),
+      installed(Host, nix_desktop)),
+    rule_desc('T1548.003 - Abuse Elevation Control Mechanism: Sudo and Sudo Caching', 1.0)).
+
+/****************** T1046 - Network Service Scanning ************************************************/
+interaction_rule(
+    (application(1, _, Host, Program) :-
+        installed(Host, Program),
+        account(2, authentication, _, _, Host, _)),
+    rule_desc('T1046 - Network Service Discovery', 1.0)).
+
+/****************** T1021.004 - Remote Services - SSH */
+interaction_rule(
+    (networkConnection(2, authentication, Host, Protocol, 22) :-
+	    application(1, _, Host, _),
+        networkService(Host, ssh, Protocol, 22, _)),
+     rule_desc('T1021.004 - Remote Services - SSH', 0.5)).
+
+interaction_rule(
+    (account(2, authentication, _, _, Host, ssh) :-
+	    system(1, _, Host, _),
+	    networkService(Host, ssh, Protocol, 22, _)),
+     rule_desc('T1021.004 - Remote Services - SSH', 0.5)).
+
+interaction_rule(
+    (account(2, authentication, _, _, Host, ssh) :-
+	    application(1, _, Host, _),
+        networkService(Host, ssh, Protocol, 22, _)),
+     rule_desc('T1021.004 - Remote Services - SSH', 0.5)).
+
+/******************* T1486 - Data Encrypted for Impact ***********************************************/
+interaction_rule(
+    (file(2, availability, Host, _)  :-
+      system(2, authorization, Host, root),
+      system(1, _, Host, _),
+      dataBackup(Host, no)),
+    rule_desc('T1486 - Data Encrypted for Impact', 1.0)).
+
+/********* T1595 - Active Scanning ******/
+/* caldera is 10_255_1_37 */
+interaction_rule(
+    (networkConnection(2, authentication, Host, Protocol, Port) :-
+      externalActor(10_255_1_37),
+      accessAllowed(10_255_1_37, Host, Protocol, Port),
+      networkService(Host, _, Protocol, Port, _)),
+    rule_desc('T1595 - Active Scanning', 1.0)).
+
+/******************** T1548.001 - Abuse Elevation Control Mechanism: Setuid and Setgid */
+interaction_rule(
+    (system(2, authorization, Host, root) :-
+      system(2, authorization, Host, user)),
+    rule_desc('T1548.001 - Abuse Elevation Control Mechanism: Setuid and Setgid', 1.0)).

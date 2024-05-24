@@ -1,65 +1,109 @@
-import csv
+import json
+from datetime import datetime
+from utils import ALLOWED_IPS
 
 
-def check_encryption_technique(filename="inputs/wazuh-archives.csv", prefix=r"C:\\log"):
+def check_selected_techniques(technique_filename, output_dictionary, end_timestamp=None):
     """
-    This function provides custom detection of technique T1486 - Data Encrypted for Impact.
-    :param filename: name of file containing data from wazuh-archives index
-    :param prefix: name of directory for which the detection is accomplished
+    This procedure tests whether techniques T1105, T1496, T1489, T1556.003, T1570, T1529 were captured in data.
+    :param technique_filename: filename of Wazuh data
+    :param output_dictionary: dictionary with partial results of found techniques
+    :param end_timestamp: log events after this timestamp are not processed
     :return:
     """
-    output_dictionary = {}
+    system_reboot_start_timestamp = None
 
-    # Obtain indices for important columns in a CSV file.
-    with open(filename, newline='') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        first_row = next(csvreader)
-        eventid_id = first_row.index('_source.data.win.system.eventID')
-        objectname_id = first_row.index('_source.data.win.eventdata.objectName')
-        accesslist_id = first_row.index('_source.data.win.eventdata.accessList')
-        accessmask_id = first_row.index('_source.data.win.eventdata.accessMask')
-        archives_agent_ip_id = first_row.index('_source.agent.ip')
-        archives_timestamp_id = first_row.index('_source.timestamp')
+    with open(technique_filename, 'r', encoding='UTF-8') as jsonfile:
+        for line in jsonfile:
+            line_data = json.loads(line)
 
-        # Search for indication that T1486 - Data Encrypted for Impact was used.
-        for row in csvreader:
-            if row[archives_agent_ip_id] not in output_dictionary:
-                output_dictionary[row[archives_agent_ip_id]] = {4656: False, "created": False, 4663: False,
-                                                                "timestamp": ""}
+            if 'ip' not in line_data['agent']:
+                continue
 
-            # File delete is indicated by general events with IDs 4656 and 4663.
-            # File create within the same location is indicated by ID 4663 with specific properties.
-            # The last found timestamp is stored in the dictionary.
-            if row[eventid_id] == "4656" and row[objectname_id].startswith(prefix):
-                output_dictionary[row[archives_agent_ip_id]][4656] = True
-                if not output_dictionary[row[archives_agent_ip_id]]["timestamp"] or \
-                        output_dictionary[row[archives_agent_ip_id]]["timestamp"] < row[archives_timestamp_id]:
-                    output_dictionary[row[archives_agent_ip_id]]["timestamp"] = row[archives_timestamp_id]
-            elif row[eventid_id] == "4663" and row[objectname_id].startswith(prefix) and \
-                    row[accesslist_id] == "%%4417" and row[accessmask_id] == "0x2":
-                output_dictionary[row[archives_agent_ip_id]]["created"] = True
-                if not output_dictionary[row[archives_agent_ip_id]]["timestamp"] or \
-                        output_dictionary[row[archives_agent_ip_id]]["timestamp"] < row[archives_timestamp_id]:
-                    output_dictionary[row[archives_agent_ip_id]]["timestamp"] = row[archives_timestamp_id]
-            elif row[eventid_id] == "4663" and row[objectname_id].startswith(prefix):
-                output_dictionary[row[archives_agent_ip_id]][4663] = True
-                if not output_dictionary[row[archives_agent_ip_id]]["timestamp"] or \
-                        output_dictionary[row[archives_agent_ip_id]]["timestamp"] < row[archives_timestamp_id]:
-                    output_dictionary[row[archives_agent_ip_id]]["timestamp"] = row[archives_timestamp_id]
+            if end_timestamp and end_timestamp < line_data['timestamp']:
+                continue
 
-        # Provide output in the right format
-        technique_dictionary = {}
-        for agent_ip in output_dictionary:
-            # All three conditions must hold to claim that T1486 was used.
-            if output_dictionary[agent_ip][4656] and output_dictionary[agent_ip]["created"] and \
-                    output_dictionary[agent_ip][4663]:
-                technique_dictionary[agent_ip] = {
-                    "rule.mitre.technique": ["Data Encrypted for Impact"],
-                    "rule.mitre.id": ["T1486"],
-                    "rule.mitre.tactic": ["Impact"],
-                    "data.timestamp": output_dictionary[agent_ip]["timestamp"],
+            agent_ip = line_data['agent']['ip']
+            if agent_ip not in ALLOWED_IPS:
+                continue
+
+            if agent_ip not in output_dictionary:
+                output_dictionary[agent_ip] = []
+
+            if 'rule' in line_data and 'description' in line_data['rule'] and \
+                    "Application installed Product: PowerShell" in line_data['rule']['description']:
+                output_dictionary[agent_ip].append({
+                    "rule.mitre.technique": ["Ingress Tool Transfer"],
+                    "rule.mitre.id": ["T1105"],
+                    "rule.mitre.tactic": ["Command and Control"],
+                    "data.timestamp": line_data['timestamp'],
                     "data.src_ip": "-",
                     "data.dest_ip": "-"
-                }
+                })
 
-    return technique_dictionary
+            if 'data' in line_data and 'win' in line_data['data'] and "eventdata" in line_data['data']['win'] and\
+                    "imagePath" in line_data['data']['win']["eventdata"] and\
+                    "xmrig" in line_data['data']['win']["eventdata"]["imagePath"]:
+                output_dictionary[agent_ip].append({
+                    "rule.mitre.technique": ["Resource Hijacking"],
+                    "rule.mitre.id": ["T1496"],
+                    "rule.mitre.tactic": ["Impact"],
+                    "data.timestamp": line_data['timestamp'],
+                    "data.src_ip": "-",
+                    "data.dest_ip": "-"
+                })
+
+            if "rule" in line_data and 'description' in line_data['rule'] and \
+                    "Print Spooler terminated unexpectedly" in line_data["rule"]["description"]:
+                output_dictionary[agent_ip].append({
+                    "rule.mitre.technique": ["Service Stop"],
+                    "rule.mitre.id": ["T1489"],
+                    "rule.mitre.tactic": ["Impact"],
+                    "data.timestamp": line_data['timestamp'],
+                    "data.src_ip": "-",
+                    "data.dest_ip": "-"
+                })
+
+            if "rule" in line_data and 'description' in line_data['rule'] and \
+                    "PAM: Login session opened." in line_data["rule"]["description"]:
+                output_dictionary[agent_ip].append({
+                    "rule.mitre.technique": ["Pluggable Authentication Modules"],
+                    "rule.mitre.id": ["T1556.003"],
+                    "rule.mitre.tactic": ["Credential Access", "Defense Evasion", "Persistence"],
+                    "data.timestamp": line_data['timestamp'],
+                    "data.src_ip": "-",
+                    "data.dest_ip": "-"
+                })
+
+            if 'data' in line_data and 'file' in line_data['data'] and \
+                    "/tmp/install_agent.sh" in line_data['data']['file']:
+                output_dictionary[agent_ip].append({
+                    "rule.mitre.technique": ["Lateral Tool Transfer"],
+                    "rule.mitre.id": ["T1570"],
+                    "rule.mitre.tactic": ["Lateral Movement"],
+                    "data.timestamp": line_data['timestamp'],
+                    "data.src_ip": "-",
+                    "data.dest_ip": "-"
+                })
+
+            if "rule" in line_data and "description" in line_data["rule"] and \
+                    "Ossec agent stopped." in line_data["rule"]["description"]:
+                system_reboot_start_timestamp = line_data["timestamp"]
+            if "rule" in line_data and "description" in line_data["rule"] and \
+                    "Ossec agent started." in line_data["rule"]["description"]:
+                system_reboot_end_timestamp = line_data["timestamp"]
+                if not system_reboot_start_timestamp:
+                    continue
+                datetime_start_timestamp = system_reboot_start_timestamp[:-2] + ":" + system_reboot_start_timestamp[-2:]
+                datetime_end_timestamp = system_reboot_end_timestamp[:-2] + ":" + system_reboot_end_timestamp[-2:]
+                timestamps_timedelta = datetime.fromisoformat(datetime_end_timestamp) - datetime.fromisoformat(
+                    datetime_start_timestamp)
+                if timestamps_timedelta.days == 0 and timestamps_timedelta.seconds < 60:
+                    output_dictionary[agent_ip].append({
+                        "rule.mitre.technique": ["System Shutdown/Reboot"],
+                        "rule.mitre.id": ["T1529"],
+                        "rule.mitre.tactic": ["Impact"],
+                        "data.timestamp": system_reboot_start_timestamp,
+                        "data.src_ip": "-",
+                        "data.dest_ip": "-"
+                    })

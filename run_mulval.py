@@ -32,6 +32,7 @@ def run_mulval(config_path):
     current_dir = os.getcwd()
     os.chdir(mulval_dir)
 
-    # following command generates attack graph in pdf
-    os.system(f'graph_gen.sh input_file.P -v -p -r {mulvalroot}/kb/rules.P')
+    # following command generates attack graph in pdf, -p option can be added for deep trimming
+    os.system(f'graph_gen.sh input_file.P -v -r {mulvalroot}/kb/rules.P')
+    #os.system(f'graph_gen.sh input_file.P -v -p -r {mulvalroot}/kb/rules.P')
     os.chdir(current_dir)

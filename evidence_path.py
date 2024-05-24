@@ -1,29 +1,25 @@
-import csv
 import json
-from pprint import pprint
-from utils import partially_ordered_phases
 from copy import deepcopy
 import ipaddress
+from utils import partially_ordered_phases
 from final_report import final_evaluation
-from custom_detection import check_encryption_technique
+from custom_detection import check_selected_techniques
+from utils import ALLOWED_IPS, CRITICAL_IPS, SERVER_IPS
 
-# The following values were used during the table-top exercise in May 2023.
-# -------------------------------------------------------------------------
-CRITICAL_IPS = ['10.11.1.10', '10.11.1.20', '10.77.77.77']
-TECHNIQUE_FILENAMES = ['inputs/wazuh-alerts.csv']
-COMMUNICATION_FILENAMES = []
+TECHNIQUE_FILENAMES = ['alerts/ossec-alerts-04.json',
+                       'alerts/ossec-alerts-05.json',
+                       'alerts/ossec-alerts-06.json',
+                       'alerts/ossec-alerts-07.json',
+                       'alerts/ossec-alerts-08.json',
+                       'alerts/ossec-alerts-09.json']
 
-# Default indices for CSV files, they are updated by searching for the column name
-# in relevant procedures. Wazuh always changes count of columns and their order.
-# CSVs cannot be used in any case in production.
-TECHNIQUE_INDEX = 75
-AGENT_IP_INDEX = 102
-MITRE_ID_INDEX = 76
-TIMESTAMP_INDEX = 30
-SRC_IP_INDEX = 102
-DEST_IP_INDEX = 102
-# -------------------------------------------------------------------------
-
+COMMUNICATION_FILENAMES = [
+    'alerts/ossec-alerts-04.json',
+    'alerts/ossec-alerts-05.json',
+    'alerts/ossec-alerts-06.json',
+    'alerts/ossec-alerts-07.json',
+    'alerts/ossec-alerts-08.json',
+    'alerts/ossec-alerts-09.json']
 
 MAPPING_OF_TECHNIQUES = {
     "T1565.001": ["Impact"],
@@ -41,7 +37,15 @@ MAPPING_OF_TECHNIQUES = {
     "T1484": ["Defense Evasion", "Privilege Escalation"],
     "T1531": ["Impact"],
     "T1486": ["Impact"],
-    "T1550.002": ["Defense Evasion", "Lateral Movement"]
+    "T1550.002": ["Defense Evasion", "Lateral Movement"],
+    "T1110": ["Credential Access"],
+    "T1048.002": ["Exfiltration"],
+    "T1105": ["Command and Control"],
+    "T1496": ["Impact"],
+    "T1489": ["Impact"],
+    "T1556.003": ["Credential Access", "Defense Evasion", "Persistence"],
+    "T1570": ["Lateral Movement"],
+    "T1529": ["Impact"]
 }
 
 NAMES_OF_TECHNIQUES = {
@@ -60,7 +64,15 @@ NAMES_OF_TECHNIQUES = {
     "T1484": "Domain Policy Modification",
     "T1531": "Account Access Removal",
     "T1486": "Data Encrypted for Impact",
-    "T1550.002": "Pass the Hash"
+    "T1550.002": "Pass the Hash",
+    "T1110": "Brute Force",
+    "T1048.002": "Exfiltration Over Asymmetric Encrypted Non-C2 Protocol",
+    "T1105": "Ingress Tool Transfer",
+    "T1496": "Resource Hijacking",
+    "T1489": "Service Stop",
+    "T1556.003": "Pluggable Authentication Modules",
+    "T1570": "Lateral Tool Transfer",
+    "T1529": "System Shutdown/Reboot"
 }
 
 
@@ -82,7 +94,8 @@ def check_techniques(previous_technique, next_technique):
 
     for first_phase in previous_technique['rule.mitre.tactic']:
         for second_phase in next_technique['rule.mitre.tactic']:
-            if first_phase in partially_ordered_phases[second_phase]:
+            if second_phase not in partially_ordered_phases[first_phase] and \
+                    second_phase != first_phase:
                 combinations.remove((first_phase, second_phase))
 
     first_satisfactory_phases = set()
@@ -120,7 +133,8 @@ def check_starting_tactics(tactics):
     """
     allowed_tactics = []
     for tactic in tactics:
-        if tactic in ['Reconnaissance', 'Resource Development', 'Initial Access']:
+        # Lateral movement can be an initial tactic for a device that was accessed laterally
+        if tactic in ['Reconnaissance', 'Resource Development', 'Initial Access', 'Lateral Movement']:
             allowed_tactics.append(tactic)
     return allowed_tactics
 
@@ -138,69 +152,76 @@ def is_ip_address(ip_address):
         return False
 
 
-def process_file_containing_techniques(technique_filename, output_dictionary):
+def process_file_containing_techniques(technique_filename, output_dictionary, end_timestamp=None):
     """
     Add to the output dictionary all technique present in a file.
     :param technique_filename: file containing alerts about techniques
     :param output_dictionary: output dictionary that will contain the techniques
     :return:
     """
-    with open(technique_filename, newline='') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        first_row = next(csvreader)
-        TECHNIQUE_INDEX = first_row.index('_source.rule.mitre.technique')
-        AGENT_IP_INDEX = first_row.index('_source.agent.ip')
-        MITRE_ID_INDEX = first_row.index('_source.rule.mitre.id')
-        TIMESTAMP_INDEX = first_row.index('_source.timestamp')
 
-        for row in csvreader:
-            if row[TECHNIQUE_INDEX] != 'rule.mitre.technique' and row[TECHNIQUE_INDEX] != "-" and \
-                    row[TECHNIQUE_INDEX] != '_source.rule.mitre.technique' and row[TECHNIQUE_INDEX] != ' ':
-                if row[AGENT_IP_INDEX] not in output_dictionary:
-                    output_dictionary[row[AGENT_IP_INDEX]] = []
+    with open(technique_filename, 'r', encoding='UTF-8') as jsonfile:
+        for line in jsonfile:
+            line_data = json.loads(line)
 
-                # modified version of for loop condition
-                for mitre_id in json.loads(row[MITRE_ID_INDEX]):
-                    output_dictionary[row[AGENT_IP_INDEX]].append({
+            if 'ip' not in line_data['agent']:
+                continue
+
+            if end_timestamp and end_timestamp < line_data['timestamp']:
+                continue
+
+            agent_ip = line_data['agent']['ip']
+            if agent_ip not in ALLOWED_IPS:
+                continue
+
+            if agent_ip not in output_dictionary:
+                output_dictionary[agent_ip] = []
+
+            if 'rule' in line_data and 'mitre' in line_data['rule'] and 'id' in line_data['rule']['mitre']:
+                for mitre_id in line_data['rule']['mitre']['id']:
+                    output_dictionary[agent_ip].append({
                         "rule.mitre.technique": [NAMES_OF_TECHNIQUES[mitre_id]],
                         "rule.mitre.id": [mitre_id],
                         "rule.mitre.tactic": MAPPING_OF_TECHNIQUES[mitre_id],
-                        "data.timestamp": row[TIMESTAMP_INDEX],
+                        "data.timestamp": line_data['timestamp'],
                         "data.src_ip": "-",
                         "data.dest_ip": "-"
                     })
 
-    # add techniques detected by custom detection
-    technique_dictionary = check_encryption_technique()
-    for agent_ip in technique_dictionary:
-        if agent_ip not in output_dictionary:
-            output_dictionary[agent_ip] = []
-        output_dictionary[agent_ip].append(technique_dictionary[agent_ip])
+    check_selected_techniques(technique_filename, output_dictionary, end_timestamp)
 
 
-def process_file_containing_communication(communication_filename, output_dictionary):
+def process_file_containing_communication(communication_filename, output_dictionary, end_timestamp=None):
     """
     Add to the output dictionary all communication entries from a file.
     :param communication_filename: file containing communication of IP addresses
     :param output_dictionary: output dictionary that will contain the communication
     :return:
     """
-    with open(communication_filename, newline='') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        for row in csvreader:
+    with open(communication_filename, 'r', encoding='UTF-8') as jsonfile:
+        for line in jsonfile:
+            line_data = json.loads(line)
 
-            if row[AGENT_IP_INDEX] != 'agent.ip' and \
-                    row[SRC_IP_INDEX] != " " and row[DEST_IP_INDEX] != " ":
-                # technique type of event has technique specified while communication not
-                if row[AGENT_IP_INDEX] not in output_dictionary:
-                    output_dictionary[row[AGENT_IP_INDEX]] = []
-                output_dictionary[row[AGENT_IP_INDEX]].append({
+            if end_timestamp and end_timestamp < line_data['timestamp']:
+                continue
+
+            if 'data' in line_data and 'src_ip' in line_data['data'] and \
+                    'dest_ip' in line_data['data']:
+
+                agent_ip = line_data['agent']['ip']
+                if agent_ip not in ALLOWED_IPS:
+                    continue
+
+                if agent_ip not in output_dictionary:
+                    output_dictionary[agent_ip] = []
+
+                output_dictionary[agent_ip].append({
                     "rule.mitre.technique": [],
                     "rule.mitre.id": [],
                     "rule.mitre.tactic": [],
-                    "data.timestamp": row[TIMESTAMP_INDEX],
-                    "data.src_ip": row[SRC_IP_INDEX],
-                    "data.dest_ip": row[DEST_IP_INDEX]
+                    "data.timestamp": line_data['data']['timestamp'],
+                    "data.src_ip": line_data['data']['src_ip'],
+                    "data.dest_ip": line_data['data']['dest_ip']
                 })
 
 
@@ -211,6 +232,7 @@ def compress_events(output_dictionary):
     :param output_dictionary: output dictionary that will contain the compressed entries
     :return:
     """
+
     tmp_dictionary = {}
     for ip_address in output_dictionary:
         tmp_dictionary[ip_address] = []
@@ -245,9 +267,10 @@ def compress_events(output_dictionary):
                     sequence_length = 1
                     if "data.timestamp" in current_item:
                         del current_item["data.timestamp"]
+
         current_item["count"] = sequence_length
         tmp_dictionary[ip_address].append(current_item)
-    output_dictionary = tmp_dictionary
+    return tmp_dictionary
 
 
 def create_sequences(input_dictionary):
@@ -260,87 +283,94 @@ def create_sequences(input_dictionary):
     for ip_address in input_dictionary:
         sequences[ip_address] = []
         for event in input_dictionary[ip_address]:
+
             # there is no attack path - start a new one
             if len(sequences[ip_address]) == 0:
-                # the following condition compresses also communication events
-                # if techniques are only needed, replace ["-"] with []
-                if event["rule.mitre.id"] != ["-"]:
-                    event["rule.mitre.tactic"] = check_starting_tactics(event["rule.mitre.tactic"])
-                    if event["rule.mitre.tactic"]:
-                        sequences[ip_address].append([{
-                            "rule.mitre.id": event["rule.mitre.id"],
-                            "rule.mitre.technique": event["rule.mitre.technique"],
-                            "rule.mitre.tactic": event["rule.mitre.tactic"]}])
+                event["rule.mitre.tactic"] = check_starting_tactics(event["rule.mitre.tactic"])
+                if event["rule.mitre.tactic"]:
+                    sequences[ip_address].append([{
+                        "rule.mitre.id": event["rule.mitre.id"],
+                        "rule.mitre.technique": event["rule.mitre.technique"],
+                        "rule.mitre.tactic": event["rule.mitre.tactic"]}])
 
             # there are already some sequences
             else:
-                for sequence in sequences[ip_address]:
-                    last_index = len(sequence) - 1
-                    if event["rule.mitre.id"] != ["-"]:
-                        correct_phases = False
-                        if sequence[last_index]["rule.mitre.id"] == event["rule.mitre.id"]:
-                            continue
+                sequences_number = len(sequences[ip_address])
+                for sequence_index in range(sequences_number):
+                    last_index = len(sequences[ip_address][sequence_index]) - 1
+                    correct_phases = False
+                    if event["rule.mitre.id"] in [i["rule.mitre.id"] for i in sequences[ip_address][sequence_index]]:
+                        continue
 
-                        # Lateral movement is addressed during path matching.
-                        # If an attack path contains the lateral movement tactic, then the matching tests a sequence of
-                        # alerts from one host before the lateral movement and a sequence of alerts from the second host
-                        # after the lateral movement.
-                        for start_tactic in sequence[last_index]["rule.mitre.tactic"]:
-                            for end_tactic in event["rule.mitre.tactic"]:
-                                if end_tactic in partially_ordered_phases[start_tactic] or \
-                                        end_tactic == start_tactic:
-                                    correct_phases = True
+                    # Lateral movement is addressed during path matching.
+                    # If an attack path contains the lateral movement tactic, then the matching tests a sequence of
+                    # alerts from one host before the lateral movement and a sequence of alerts from the second host
+                    # after the lateral movement.
+                    for start_tactic in sequences[ip_address][sequence_index][last_index]["rule.mitre.tactic"]:
+                        for end_tactic in event["rule.mitre.tactic"]:
+                            if end_tactic in partially_ordered_phases[start_tactic] or \
+                                    end_tactic == start_tactic:
+                                correct_phases = True
 
-                        # if the current event can be added to the sequence
-                        if correct_phases:
-                            sequence.append({
+                    # if the current event can be added to the sequence
+                    if correct_phases:
+                        sequence_to_be_added = sequences[ip_address][sequence_index] + [{
+                            "rule.mitre.id": event["rule.mitre.id"],
+                            "rule.mitre.technique": event["rule.mitre.technique"],
+                            "rule.mitre.tactic": event["rule.mitre.tactic"]}]
+                        if sequence_to_be_added not in sequences[ip_address]:
+                            sequences[ip_address][sequence_index].append({
                                 "rule.mitre.id": event["rule.mitre.id"],
                                 "rule.mitre.technique": event["rule.mitre.technique"],
                                 "rule.mitre.tactic": event["rule.mitre.tactic"]})
 
-                        # if the current event cannot be added to the sequence's end
-                        else:
-                            # iterate back through the sequence
-                            current_index = last_index - 1
-                            while current_index > 0:
-                                if event["rule.mitre.id"] != ["-"]:
-                                    correct_inner_phases = False
-                                    for start_tactic in sequence[last_index]["rule.mitre.tactic"]:
-                                        for end_tactic in event["rule.mitre.tactic"]:
-                                            if end_tactic in partially_ordered_phases[start_tactic] or \
-                                                    end_tactic == start_tactic:
-                                                correct_inner_phases = True
-                                    if sequence[last_index]["rule.mitre.id"] == event["rule.mitre.id"]:
-                                        correct_inner_phases = False
+                    # if the current event cannot be added to the sequence's end
+                    else:
+                        # iterate back through the sequence
+                        current_index = last_index - 1
+                        while current_index >= 0:
+                            correct_inner_phases = False
+                            for start_tactic in sequences[ip_address][sequence_index][current_index][
+                                    "rule.mitre.tactic"]:
+                                for end_tactic in event["rule.mitre.tactic"]:
+                                    if end_tactic in partially_ordered_phases[start_tactic] or \
+                                            end_tactic == start_tactic:
+                                        correct_inner_phases = True
+                            if (sequences[ip_address][sequence_index][current_index]["rule.mitre.id"] ==
+                                    event["rule.mitre.id"]):
+                                correct_inner_phases = False
 
-                                    # add the technique to the right position
-                                    if correct_inner_phases:
-                                        sequence.append({
+                            # copy the sequence and add the technique to the right position
+                            if correct_inner_phases:
+                                sequence_to_be_added = sequences[ip_address][sequence_index][:current_index + 1] + [{
+                                    "rule.mitre.id": event["rule.mitre.id"],
+                                    "rule.mitre.technique": event["rule.mitre.technique"],
+                                    "rule.mitre.tactic": event["rule.mitre.tactic"]}]
+                                if sequence_to_be_added not in sequences[ip_address]:
+                                    sequences[ip_address].append(sequence_to_be_added)
+                                break
+
+                            # create new sequence
+                            else:
+                                # not all phases can begin kill chain
+                                if current_index == - len(sequences[ip_address][sequence_index]) and [{
+                                    "rule.mitre.id": event["rule.mitre.id"],
+                                    "rule.mitre.technique": event["rule.mitre.technique"],
+                                    "rule.mitre.tactic": event["rule.mitre.tactic"]}] not in sequences[
+                                        ip_address]:
+                                    event["rule.mitre.tactic"] = check_starting_tactics(
+                                        event["rule.mitre.tactic"])
+                                    if event["rule.mitre.tactic"]:
+                                        sequences[ip_address].append([{
                                             "rule.mitre.id": event["rule.mitre.id"],
                                             "rule.mitre.technique": event["rule.mitre.technique"],
-                                            "rule.mitre.tactic": event["rule.mitre.tactic"]})
-                                        break
+                                            "rule.mitre.tactic": event["rule.mitre.tactic"]}])
+                            current_index -= 1
 
-                                    # create new sequence
-                                    else:
-                                        current_index -= 1
-                                        # not all phases can begin kill chain
-                                        if current_index == -1 and [{
-                                            "rule.mitre.id": event["rule.mitre.id"],
-                                            "rule.mitre.technique": event["rule.mitre.technique"],
-                                            "rule.mitre.tactic": event["rule.mitre.tactic"]}] not in sequences[
-                                            ip_address]:
-                                            event["rule.mitre.tactic"] = check_starting_tactics(
-                                                event["rule.mitre.tactic"])
-                                            if event["rule.mitre.tactic"]:
-                                                sequences[ip_address].append([{
-                                                    "rule.mitre.id": event["rule.mitre.id"],
-                                                    "rule.mitre.technique": event["rule.mitre.technique"],
-                                                    "rule.mitre.tactic": event["rule.mitre.tactic"]}])
     return sequences
 
 
-def process_restricted_files():
+def process_restricted_files(end_timestamp=None):
     """
     This procedure processes files obtained from SIEM with a restricted static content.
     :return:
@@ -350,46 +380,34 @@ def process_restricted_files():
     # step 1 - add all techniques to the dictionary
     # ============================================
     for technique_filename in TECHNIQUE_FILENAMES:
-        process_file_containing_techniques(technique_filename, output_dictionary)
+        process_file_containing_techniques(technique_filename, output_dictionary, end_timestamp)
+    print("STEP 1 completed")
 
     # step 2 - add communication to the dictionary
     # ========================================================================
     for communication_filename in COMMUNICATION_FILENAMES:
         process_file_containing_communication(communication_filename, output_dictionary)
+    print("STEP 2 completed")
 
     # step 3 - sort and compress multiple appearances of the same event
     for ip_address in output_dictionary:
         output_dictionary[ip_address] = sorted(output_dictionary[ip_address], key=lambda i: i['data.timestamp'])
 
-    compress_events(output_dictionary)
+    output_dictionary = compress_events(output_dictionary)
 
-    with open("outputs/output_dictionary.json", "w") as output_file:
+    with open("outputs/output_dictionary.json", "w", encoding="UTF-8") as output_file:
         json.dump(output_dictionary, output_file, indent=4)
+
+    print("STEP 3 completed")
 
     # step 4 - find possible attack paths
     sequences = create_sequences(output_dictionary)
+    print("STEP 4 completed")
 
-    # step 5 - check sequences and their kill chain phases
-    for ip_address in sequences:
-        for sequence in sequences[ip_address]:
-            for list_index in range(len(sequence)):
-                if list_index > 0:
-                    previous_index = list_index - 1
-                    current_technique = sequence[list_index]
-                    previous_technique = sequence[previous_index]
-                    check_techniques(previous_technique, current_technique)
+    with open("outputs/sequences_sorted.json", "w", encoding='UTF-8') as output_file:
+        json.dump(sequences, output_file, indent=4)
 
-                if list_index < len(sequence) - 1:
-                    next_index = list_index + 1
-                    current_technique = sequence[list_index]
-                    next_technique = sequence[next_index]
-                    check_techniques(current_technique, next_technique)
-
-    print("These valid sequences of alerts were present in the data:")
-    pprint(sequences)
-
-    # step 6 - final evaluation
+    # step 5 - final evaluation
     # the evaluation will contain IP, level and techniques (with attack path in data) as an indication
-    print("The following output contains attack paths.")
     print("The return value contains severity levels for IP addresses.")
     return final_evaluation(sequences, CRITICAL_IPS)

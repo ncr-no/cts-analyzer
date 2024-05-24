@@ -1,78 +1,178 @@
-networkService(10_11_1_10, _, tcp, _, _).
-accountLocking(no).
-inboundTrafficFiltering(10_11_1_0_24, no).
-inboundTrafficFiltering(10_11_3_0_24, no).
-inboundTrafficFiltering(10_11_2_0_24, no).
-inboundTrafficFiltering(10_11_4_0_24, no).
-inboundTrafficFiltering(10_11_9_0_24, no).
-accessAllowed(10_11_4_172, 10_11_1_10, tcp, _).
-accessAllowed(10_11_4_138, 10_11_2_113, tcp, _).
-accessAllowed(10_11_4_174, 10_11_1_10, tcp, _).
-networkService(10_11_2_113, _, tcp, _, _).
-networkService(10_11_4_172, _, tcp, 80, _).
-inNetwork(10_11_3_10, 10_11_3_0_24).
-accessAllowed(10_255_1_128, 10_11_2_113, _, _).
-accessAllowed(10_11_2_113, 10_11_4_138, tcp, 22).
-accessAllowed(10_11_3_10, 10_11_2_113, tcp, _).
-accessAllowed(10_11_3_10, 10_11_9_133, tcp, _).
-attackGoal(file(2, integrity, 10_11_1_10, _)).
-accessAllowed(10_11_4_174, 10_11_9_133, tcp, _).
-accessAllowed(10_11_4_172, 10_11_2_113, tcp, _).
-networkService(10_11_9_133, _, tcp, _, _).
-accessAllowed(10_11_4_172, 10_11_9_133, tcp, _).
-encryptedDisk(10_11_3_10, no).
-encryptedDisk(10_11_2_113, no).
-encryptedDisk(10_11_9_133, no).
-encryptedDisk(10_11_4_174, no).
-encryptedDisk(10_11_4_172, no).
-encryptedDisk(10_11_4_138, no).
-encryptedDisk(10_11_1_10, no).
-plaintextProtocol(69).
-dataBackup(10_11_9_133, no).
-dataBackup(10_11_1_10, no).
-dataBackup(10_11_2_113, no).
-dataBackup(10_11_4_172, no).
-dataBackup(10_11_4_138, no).
-dataBackup(10_11_3_10, no).
-dataBackup(10_11_4_174, no).
-accessAllowed(10_11_4_138, 10_11_1_10, tcp, _).
-softwareUpdate(no).
-accessAllowed(10_11_3_10, 10_11_1_10, tcp, _).
-accessAllowed(10_11_2_113, 10_11_4_172, tcp, 80).
-accessAllowed(10_11_4_138, 10_11_9_133, tcp, _).
-inNetwork(10_11_4_172, 10_11_4_0_24).
-networkService(10_11_4_138, _, tcp, 22, _).
-inNetwork(10_11_4_138, 10_11_4_0_24).
-inNetwork(10_11_4_174, 10_11_4_0_24).
-homoglyphDetection(no).
-accessAllowed(10_11_4_174, 10_11_2_113, tcp, _).
-externalActor(10_255_1_128).
-plaintextProtocol(25).
-installed(10_11_1_10, windows).
-externalActor(internet).
-multifactorAuthentication(no).
-accessAllowed(10_255_1_128, 10_11_9_133, _, _).
-senderReputationAnalysis(no).
-inNetwork(10_11_2_113, 10_11_2_0_24).
-inNetwork(10_11_1_10, 10_11_1_0_24).
-plaintextProtocol(20).
-plaintextProtocol(110).
-urlAnalysis(no).
-accessAllowed(10_255_1_128, 10_11_1_10, _, _).
-inNetwork(10_11_9_133, 10_11_9_0_24).
-strongPasswordPolicy(no).
-installed(10_11_9_133, windows).
-plaintextProtocol(80).
-plaintextProtocol(23).
-senderMTAReputationAnalysis(no).
-installed(10_11_2_113, windows).
-hasAccount(_, root, 10_11_9_133, windows).
-userTraining(no).
-%hasAccount(_, _, 10_11_1_10, windows).
-hasAccount(_, user, 10_11_1_10, windows).
-%hasAccount(_, _, 10_11_9_133, windows).
-hasAccount(_, root, 10_11_2_113, windows).
-%hasAccount(_, _, 10_11_2_113, windows).
+accessAllowed(10_11_2_20, 10_10_10_10, tcp, _).
+networkService(54_230_111_77, _, tcp, _, _).
+accessAllowed(10_10_10_10, 185_125_190_26, tcp, _).
+vulnerableAsset(10_12_3_10, _, zero_day_cve, remote, privEscalation).
+accessAllowed(10_12_2_10, 10_10_10_10, tcp, _).
+accessAllowed(10_12_3_20, 10_12_3_10, _, _).
+inboundTrafficFiltering(10_77_77_0_24, no).
+accessAllowed(10_10_10_10, 54_230_111_6, tcp, _).
+accessAllowed(10_255_1_37, 10_12_1_20, _, _).
 passwordPolicies(no).
-userAccountManagement(no).
+networkService(54_230_111_6, _, tcp, _, _).
+networkService(151_101_66_49, _, tcp, _, _).
+attackGoal(system(2, availability, 10_12_1_10, _)).
+networkService(185_125_190_80, _, tcp, _, _).
+networkService(185_125_190_26, _, tcp, _, _).
+accessAllowed(10_10_10_10, 54_171_230_55, tcp, _).
+accessAllowed(10_12_2_10, 10_12_2_20, _, _).
+accessAllowed(10_12_3_20, 10_10_10_10, tcp, _).
+userTraining(no).
+attackGoal(application(2, availability, 10_12_1_20, _)).
+accessAllowed(10_255_1_37, 10_77_77_77, _, _).
+accessAllowed(10_12_2_10, 10_99_99_99, tcp, _).
+inboundTrafficFiltering(10_10_10_0_24, no).
+hasAccount(_, user, 10_12_1_10, windows).
+accessAllowed(10_10_10_10, 91_189_91_83, tcp, _).
+networkService(10_12_2_10, _, tcp, _, _).
+networkService(54_171_230_55, _, tcp, _, _).
+inboundTrafficFiltering(10_12_3_0_24, no).
+accessAllowed(10_10_10_10, 151_101_130_49, tcp, _).
+networkService(185_125_188_58, _, tcp, _, _).
+vulnerableAsset(10_12_2_20, _, zero_day_cve, remote, privEscalation).
+accessAllowed(10_255_1_37, 10_12_2_10, _, _).
+accessAllowed(10_10_10_10, 54_217_10_153, tcp, _).
+senderMTAReputationAnalysis(no).
+accessAllowed(10_10_10_10, 54_247_62_1, tcp, _).
+hasAccount(_, root, 10_12_1_10, windows).
+inboundTrafficFiltering(10_12_2_0_24, no).
+inboundTrafficFiltering(10_12_1_0_24, no).
+accessAllowed(10_10_10_10, 185_125_190_80, tcp, _).
+networkService(10_12_3_20, _, tcp, _, _).
 restrictRegistryPermissions(no).
+dataBackup(10_10_10_10, no).
+accessAllowed(10_12_1_10, 10_12_1_20, _, _).
+accessAllowed(10_11_3_20, 10_10_10_10, tcp, _).
+networkService(10_12_1_10, _, _, _, _).
+accessAllowed(10_10_10_10, 34_254_182_186, tcp, _).
+networkService(34_243_160_129, _, tcp, _, _).
+accessAllowed(10_11_2_10, 10_10_10_10, tcp, _).
+inNetwork(10_12_3_20, 10_12_3_0_24).
+accessAllowed(10_12_1_20, 10_12_1_20, _, _).
+accessAllowed(10_12_3_10, 10_12_3_10, _, _).
+dataBackup(10_77_77_77, no).
+inNetwork(10_12_1_20, 10_12_1_0_24).
+networkService(10_99_99_99, _, tcp, _, _).
+networkService(10_12_2_20, _, tcp, _, _).
+dataBackup(10_12_3_20, no).
+networkService(18_173_5_66, _, tcp, _, _).
+accessAllowed(10_255_1_37, 10_12_1_10, _, _).
+networkService(185_125_188_54, _, tcp, _, _).
+inNetwork(10_12_2_10, 10_12_2_0_24).
+softwareUpdate(no).
+attackGoal(system(2, availability, 10_12_2_10, _)).
+accessAllowed(10_12_1_10, 10_12_1_10, _, _).
+plaintextProtocol(23).
+accessAllowed(10_10_10_10, 54_230_111_77, tcp, _).
+accessAllowed(10_10_10_10, 10_10_10_10, _, _).
+homoglyphDetection(no).
+networkService(91_189_91_121, _, tcp, _, _).
+accessAllowed(10_10_10_10, 185_125_188_59, tcp, _).
+networkService(10_10_10_10, _, tcp, _, _).
+urlAnalysis(no).
+accessAllowed(10_255_1_37, 10_12_3_10, _, _).
+accessAllowed(10_12_3_20, 10_255_1_37, tcp, _).
+senderReputationAnalysis(no).
+accountLocking(no).
+installed(10_12_2_20, linux).
+vulnerableAsset(10_12_1_10, _, zero_day_cve, remote, privEscalation).
+dataBackup(10_12_1_20, no).
+hasAccount(_, root, 10_10_10_10, linux).
+hasAccount(_, root, 10_12_1_20, windows).
+accessAllowed(10_255_1_37, 10_12_3_20, tcp, _).
+accessAllowed(10_12_1_20, 10_12_1_10, _, _).
+accessAllowed(10_12_3_20, 10_12_3_20, _, _).
+inNetwork(10_77_77_77, 10_77_77_0_24).
+hasAccount(_, root, 10_12_3_20, linux).
+accessAllowed(10_12_2_20, 10_12_2_10, _, _).
+accessAllowed(10_255_1_37, 10_12_2_20, _, _).
+accessAllowed(10_12_3_10, 10_12_3_20, _, _).
+accessAllowed(10_10_10_10, 185_125_188_58, tcp, _).
+hasAccount(_, root, 10_77_77_77, windows).
+accessAllowed(10_10_10_10, 151_101_66_49, tcp, _).
+hasAccount(_, user, 10_12_1_20, windows).
+installed(10_12_1_10, windows).
+strongPasswordPolicy(no).
+networkService(185_125_188_55, _, tcp, _, _).
+hasAccount(_, user, 10_77_77_77, windows).
+dataBackup(10_12_2_10, no).
+networkService(91_189_91_43, _, tcp, _, _).
+accessAllowed(10_10_10_10, 185_125_188_54, tcp, _).
+accessAllowed(10_12_2_20, 10_99_99_99, tcp, _).
+accessAllowed(10_12_2_20, 10_255_1_37, tcp, _).
+installed(10_12_3_20, linux).
+accessAllowed(10_10_10_10, 91_189_91_121, tcp, _).
+accessAllowed(10_10_10_10, 185_125_188_55, tcp, _).
+accessAllowed(10_12_3_10, 10_12_2_10, tcp, _).
+multifactorAuthentication(no).
+vulnerableAsset(10_12_1_20, _, zero_day_cve, remote, privEscalation).
+externalActor(internet).
+accessAllowed(10_10_10_10, 91_189_91_82, tcp, _).
+attackGoal(file(2, confidentiality, 10_12_2_20, _)).
+dataBackup(10_12_2_20, no).
+accessAllowed(10_10_10_10, 91_189_91_43, tcp, _).
+networkService(34_254_182_186, _, tcp, _, _).
+inNetwork(10_12_1_10, 10_12_1_0_24).
+vulnerableAsset(10_10_10_10, _, zero_day_cve, remote, privEscalation).
+accessAllowed(10_12_2_10, 10_12_3_10, tcp, _).
+accessAllowed(10_255_1_37, 10_10_10_10, tcp, _).
+accessAllowed(10_255_1_37, 10_12_2_10, tcp, _).
+networkService(185_125_188_59, _, tcp, _, _).
+networkService(10_255_1_37, _, tcp, _, _).
+accessAllowed(10_10_10_10, 10_255_1_37, tcp, _).
+installed(10_12_3_10, linux).
+accessAllowed(10_10_10_10, 91_189_91_81, tcp, _).
+networkService(10_12_1_20, _, _, _, _).
+accessAllowed(10_12_3_10, 10_10_10_10, tcp, _).
+hasAccount(_, user, 10_12_3_10, linux).
+accessAllowed(10_77_77_77, 10_77_77_77, _, _).
+accessAllowed(10_255_1_37, 10_10_10_10, _, _).
+hasAccount(_, user, 10_12_2_20, linux).
+accessAllowed(10_11_3_10, 10_10_10_10, tcp, _).
+inNetwork(10_10_10_10, 10_10_10_0_24).
+plaintextProtocol(69).
+vulnerableAsset(10_12_2_10, _, zero_day_cve, remote, privEscalation).
+accessAllowed(10_12_2_20, 10_10_10_10, tcp, _).
+networkService(10_11_3_10, _, tcp, _, _).
+dataBackup(10_12_1_10, no).
+installed(10_12_1_20, windows).
+accessAllowed(10_12_2_10, 10_12_2_10, _, _).
+plaintextProtocol(25).
+networkService(91_189_91_81, _, tcp, _, _).
+inNetwork(10_12_2_20, 10_12_2_0_24).
+dataBackup(10_12_3_10, no).
+networkService(91_189_91_122, _, tcp, _, _).
+userAccountManagement(no).
+networkService(10_12_3_10, _, tcp, _, _).
+hasAccount(_, user, 10_12_3_20, linux).
+accessAllowed(10_12_2_20, 10_11_3_10, tcp, _).
+accessAllowed(10_10_10_10, 34_243_160_129, tcp, _).
+accessAllowed(10_11_3_10, 10_12_2_20, tcp, _).
+attackGoal(file(2, availability, 10_12_3_20, _)).
+networkService(151_101_2_49, _, tcp, _, _).
+hasAccount(_, user, 10_10_10_10, linux).
+vulnerableAsset(10_77_77_77, _, zero_day_cve, remote, privEscalation).
+plaintextProtocol(110).
+networkService(91_189_91_83, _, tcp, _, _).
+accessAllowed(10_12_2_10, 10_255_1_37, tcp, _).
+networkService(185_125_190_36, _, tcp, _, _).
+inNetwork(10_12_3_10, 10_12_3_0_24).
+accessAllowed(10_10_10_10, 18_173_5_66, tcp, _).
+networkService(91_189_91_82, _, tcp, _, _).
+vulnerableAsset(10_12_3_20, _, zero_day_cve, remote, privEscalation).
+accessAllowed(10_12_2_20, 10_12_2_20, _, _).
+accessAllowed(10_10_10_10, 151_101_2_49, tcp, _).
+hasAccount(_, root, 10_12_2_20, linux).
+accessAllowed(10_10_10_10, 91_189_91_122, tcp, _).
+installed(10_77_77_77, windows).
+networkService(54_247_62_1, _, tcp, _, _).
+plaintextProtocol(80).
+accessAllowed(10_255_1_37, 10_12_3_20, _, _).
+hasAccount(_, root, 10_12_3_10, linux).
+accessAllowed(10_10_10_10, 185_125_190_36, tcp, _).
+plaintextProtocol(20).
+networkService(54_217_10_153, _, tcp, _, _).
+installed(10_10_10_10, linux).
+networkService(10_77_77_77, _, _, _, _).
+networkService(10_77_77_77, activeDirectory, _, _, _).
+networkService(151_101_130_49, _, tcp, _, _).
+externalActor(10_255_1_37).

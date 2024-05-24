@@ -7,25 +7,42 @@ P = ['Reconnaissance', 'Resource Development', 'Initial Access', 'Execution', 'P
 
 # This dictionary contains for each phase its successor phases
 partially_ordered_phases = {
-    'Reconnaissance': ['Credential Access', 'Initial Access', 'Execution', 'Privilege Escalation', 'Persistence',
+    'Reconnaissance': ['Reconnaissance', 'Resource Development', 'Credential Access', 'Initial Access', 'Execution',
+                       'Privilege Escalation', 'Persistence',
                        'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
                        'Impact', 'Exfiltration'],
-    'Resource Development': ['Credential Access', 'Initial Access', 'Execution', 'Privilege Escalation', 'Persistence',
+    'Resource Development': ['Reconnaissance', 'Resource Development', 'Credential Access', 'Initial Access',
+                             'Execution', 'Privilege Escalation', 'Persistence',
                              'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
                              'Impact', 'Exfiltration'],
-    'Credential Access': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Initial Access': ['Execution', 'Privilege Escalation', 'Persistence', 'Defense Evasion', 'Credential Access',
-                       'Discovery', 'Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Persistence': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Defense Evasion': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Execution': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Privilege Escalation': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Discovery': ['Lateral Movement', 'Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Lateral Movement': ['Collection', 'Command and Control', 'Impact', 'Exfiltration'],
-    'Collection': ['Command and Control', 'Exfiltration'],
-    'Command and Control': ['Exfiltration'],
-    'Exfiltration': [],
-    'Impact': []
+    'Credential Access': ['Credential Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                          'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                          'Impact', 'Exfiltration'],
+    'Initial Access': ['Credential Access', 'Initial Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                       'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                       'Impact', 'Exfiltration'],
+    'Persistence': ['Credential Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                    'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                    'Impact', 'Exfiltration'],
+    'Defense Evasion': ['Credential Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                        'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                        'Impact', 'Exfiltration'],
+    'Execution': ['Credential Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                  'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                  'Impact', 'Exfiltration'],
+    'Privilege Escalation': ['Credential Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                             'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                             'Impact', 'Exfiltration'],
+    'Discovery': ['Credential Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                  'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                  'Impact', 'Exfiltration'],
+    'Lateral Movement': ['Credential Access', 'Initial Access', 'Execution', 'Privilege Escalation', 'Persistence',
+                         'Defense Evasion', 'Discovery', 'Lateral Movement', 'Collection', 'Command and Control',
+                         'Impact', 'Exfiltration'],
+    'Collection': ['Collection', 'Command and Control', 'Exfiltration'],
+    'Command and Control': ['Command and Control', 'Exfiltration'],
+    'Exfiltration': ['Exfiltration'],
+    'Impact': ['Impact']
 }
 
 
@@ -38,7 +55,7 @@ mapping_function = {
     'T1133': ['Initial Access'],  # External Remote Services
     'T1566.002': ['Initial Access'],  # Spearphishing Link
     'T1566.001': ['Initial Access'],  # Spearphishing Attachment
-    'T1078': ['Initial Access', 'Privilege Escalation'],  # T1078 - Valid Accounts
+    'T1078': ['Defense Evasion', 'Persistence', 'Initial Access', 'Privilege Escalation'],  # T1078 - Valid Accounts
     'T1078.001': ['Initial Access', 'Privilege Escalation'],  # T1078.001: Default accounts
     'T1059.008': ['Execution'],      # T1059.008: Command and Scripting Interpreter - Network Device CLI
     'T1203': ['Execution'],      # Exploitation for Client Execution
@@ -79,8 +96,40 @@ mapping_function = {
     'T1112': ['Defense Evasion'],  # Modify Registry
     'T1070.004': ['Defense Evasion'],  # File Deletion
     'T1548.003': ['Privilege Escalation', 'Defense Evasion'],  # Sudo and Sudo Caching
-    'T1543.003': ['Persistence', 'Privilege Escalation']  # Windows Service
+    'T1543.003': ['Persistence', 'Privilege Escalation'],  # Windows Service
+    'T1021.004': ['Lateral Movement'],  # Remote Services: SSH
+    'T1563': ['Lateral Movement'],  # Remote Service Session Hijacking
+    'T1543': ['Persistence', 'Privilege Escalation'],  # Create or Modify Service
+    'T1105': ['Command and Control'],  # Ingress Tool Transfer
+    'T1078.003': ['Defense Evasion', 'Persistence', 'Initial Access', 'Privilege Escalation'],  # Valid Accounts -
+                                                                                                # Local Accounts
+    'T1548.001': ['Privilege Escalation', 'Defense Evasion'],  # Abuse Elevation Control Mechanism: Setuid and Setgid
+    'T1555.004': ['Credential Access'],  # Windows Credential Manager
+    'T1136.001': ['Persistence'],  # Create Account - Local Account
+    'T1556.003': ['Credential Access', 'Defense Evasion', 'Persistence'],  # Pluggable Authentication Modules
+    'T1574.010': ['Persistence', 'Privilege Escalation', 'Defense Evasion'],  # Services File Permissions Weakness
+    'T1059.004': ['Execution'],  # Command and Scripting Interpreter - Unix Shell
+    'T1564.002': ['Defense Evasion'],  # Hidden Users
+    'T1047': ['Execution'],   # Windows Management Instrumentation
+    'T1570': ['Lateral Movement'],  # Lateral Tool Transfer
+    'T1569.002': ['Execution'],  # Service Execution
+    'T1564': ['Defense Evasion'],  # Hide Artifacts
+    'T1059.001': ['Execution'],  # Command and Scripting Interpreter - PowerShell
+    'T1082': ['Discovery'],  # System Information Discovery
+    'T1033': ['Discovery'],  # System Owner/User Discovery
+    'T1003.008': ['Credential Access'],  # OS Credential Dumping: /etc/passwd and /etc/shadow
+    'T1531': ['Impact'],  # Account Access Removal
+    'T1136': ['Persistence'],  # Create Account
+    'T1098': ['Persistence', 'Privilege Escalation'],  # Account Manipulation
+    'T1560.001': ['Collection'],  # Archive Collected Data: Archive via Utility
+    'T1529': ['Impact'],  # System Shutdown/Reboot
+    'T1496': ['Impact'],  # Resource Hijacking
     }
+
+ALLOWED_IPS = ['10.12.1.10', '10.12.1.20', '10.12.2.10', '10.12.2.20', '10.12.3.10', '10.12.3.20', '10.77.77.77',
+               '10.10.10.10']
+SERVER_IPS = ['10.77.77.77', '10.10.10.10']
+CRITICAL_IPS = ["10.12.1.10", "10.12.1.20", '10.77.77.77', "10.10.10.10"]
 
 
 def get_phases():
