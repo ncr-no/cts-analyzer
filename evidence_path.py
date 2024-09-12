@@ -4,7 +4,7 @@ import ipaddress
 from utils import partially_ordered_phases
 from final_report import final_evaluation
 from custom_detection import check_selected_techniques
-from utils import ALLOWED_IPS, CRITICAL_IPS, SERVER_IPS
+from utils import ALLOWED_IPS, CRITICAL_IPS
 
 TECHNIQUE_FILENAMES = ['alerts/ossec-alerts-04.json',
                        'alerts/ossec-alerts-05.json',

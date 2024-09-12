@@ -54,11 +54,12 @@ def check_sequence_in_path(sequence, attack_path, ip_address, threshold=0):
     return found_sequence
 
 
-def final_evaluation(sequences, critical_ips):
+def final_evaluation(sequences, critical_ips, threshold=0):
     """
     This procedure creates final evaluation of the DEFCON levels for each IP address and its sequences of techniques.
     :param sequences: dictionary containing for each IP address its sequences of techniques
     :param critical_ips: list of the critical IP addresses
+    :param threshold: threshold values that determines positive evidence paths
     :return:
     """
     evaluation = {}
@@ -67,7 +68,7 @@ def final_evaluation(sequences, critical_ips):
     for ip_address in sequences:
         for sequence in sequences[ip_address]:
             for attack_path in attack_paths:
-                for event in check_sequence_in_path(sequence, attack_path, ip_address):
+                for event in check_sequence_in_path(sequence, attack_path, ip_address, threshold):
                     if ip_address not in evaluation:
                         evaluation[ip_address] = {'technique': [], 'level': 5}
 

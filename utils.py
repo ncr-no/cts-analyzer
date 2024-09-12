@@ -131,6 +131,41 @@ ALLOWED_IPS = ['10.12.1.10', '10.12.1.20', '10.12.2.10', '10.12.2.20', '10.12.3.
 SERVER_IPS = ['10.77.77.77', '10.10.10.10']
 CRITICAL_IPS = ["10.12.1.10", "10.12.1.20", '10.77.77.77', "10.10.10.10"]
 
+SEVERITY_LEVELS_MAPPING = {
+    'critical': {
+        'Reconnaissance': 5,
+        'Resource Development': 5,
+        'Initial Access': 3,
+        'Execution': 2,
+        'Persistence': 2,
+        'Privilege Escalation': 2,
+        'Defense Evasion': 2,
+        'Credential Access': 2,
+        'Discovery': 3,
+        'Lateral Movement': 3,
+        'Collection': 2,
+        'Command and Control': 2,
+        'Exfiltration': 1,
+        'Impact': 1
+    },
+    'noncritical': {
+        'Reconnaissance': 5,
+        'Resource Development': 5,
+        'Initial Access': 4,
+        'Execution': 3,
+        'Persistence': 3,
+        'Privilege Escalation': 3,
+        'Defense Evasion': 3,
+        'Credential Access': 3,
+        'Discovery': 3,
+        'Lateral Movement': 3,
+        'Collection': 3,
+        'Command and Control': 3,
+        'Exfiltration': 2,
+        'Impact': 2
+    }
+}
+
 
 def get_phases():
     """

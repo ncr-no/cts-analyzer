@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+from pprint import pprint
 import matplotlib.pyplot as plt
 from sklearn.metrics import RocCurveDisplay
 from matplotlib.transforms import Bbox
@@ -7,6 +8,7 @@ from final_report import check_sequence_in_path
 from evaluation.ground_truth import (GROUND_TRUTH, MAPPING_ALERTS_PATH, MAPPING_PROCEDURES_ALERTS, TRUE_POSITIVE_IDS,
                                      SCENARIOS)
 from evidence_path import process_restricted_files, TECHNIQUE_FILENAMES
+from utils import CRITICAL_IPS, SEVERITY_LEVELS_MAPPING
 
 
 def get_statistics(input_files):
@@ -222,7 +224,6 @@ def get_statistical_metrics(threshold, evidence_paths_filename="outputs/sequence
                     if check_sequence_in_ground_truth(sequence, GROUND_TRUTH):
                         sequence_results.append("TP")
                     else:
-                        print(sequence)
                         sequence_results.append("FP")
                 else:
                     if found_sequence and check_sequence_in_ground_truth(sequence, GROUND_TRUTH):
@@ -421,3 +422,136 @@ def get_counts_of_techniques(ip_address):
                                 techniques[attack_id] = 0
                             techniques[attack_id] += 1
     return techniques
+
+
+def get_confusion_matrices(evidence_paths_filename="outputs/sequences_sorted.json",
+                           attack_paths_filename="attack_paths.json", critical_ips=CRITICAL_IPS):
+    """
+    This function computes confusion matrices for true positives, true negatives, false positives, and false negatives
+    for different threshold values. The final confusion matrices should be the sum of four partial matrices for
+    true positives, true negatives, false positives, and false negatives.
+    :param evidence_paths_filename: JSON filename containing evidence paths
+    :param attack_paths_filename: JSON filename containing attack paths
+    :param critical_ips: A list of IP addresses that are considered critical
+    :return:
+    """
+
+    process_restricted_files()
+
+    with open(evidence_paths_filename, "r", encoding="UTF-8") as sequences_file:
+        sequences = json.load(sequences_file)
+    with open(attack_paths_filename, "r", encoding='UTF-8') as attack_paths_file:
+        attack_paths = json.load(attack_paths_file)
+
+    # The first index of the following confusion matrix is expected value, while the second index is predicted value
+    # For the purpose of detailed analysis, results are divided according to true positives (TP) and other categories
+    # The confusion matrix is sum of the four partial matrices
+    for i in [0] + list(range(1, 11)):
+        threshold = i / (i + 1)
+        five_level_confusion_matrix = {
+            "TP": [[0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0]],
+            "FP": [[0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0]],
+            "TN": [[0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0]],
+            "FN": [[0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0]]
+        }
+
+        for ip_address in sequences:
+            print(ip_address)
+            if ip_address in critical_ips:
+                criticality = "critical"
+            else:
+                criticality = "noncritical"
+            for sequence in sequences[ip_address]:
+                found = False
+
+                for scenario_ip in SCENARIOS:
+                    if scenario_ip != ip_address:
+                        continue
+                    for scenario in SCENARIOS[scenario_ip]:
+                        if all([item["rule.mitre.id"][0] in TRUE_POSITIVE_IDS for item in sequence]) and \
+                                all([item["rule.mitre.id"][0] in scenario for item in sequence]) and \
+                                all([scenario.index(sequence[i]['rule.mitre.id'][0]) <= scenario.index(
+                                    sequence[i + 1]['rule.mitre.id'][0])
+                                     for i in range(len(sequence) - 1)]):
+                            found = True
+                        if all([item["rule.mitre.id"][0] in TRUE_POSITIVE_IDS for item in sequence[1:]]) and \
+                                all([item["rule.mitre.id"][0] in scenario for item in sequence[1:]]) and \
+                                all([scenario.index(sequence[i]['rule.mitre.id'][0]) <= scenario.index(
+                                    sequence[i + 1]['rule.mitre.id'][0])
+                                     for i in range(1, len(sequence) - 1)]):
+                            found = True
+
+                if found:
+                    best_match = 0
+                    best_found_sequence = None
+                    for attack_path in attack_paths:
+                        found_sequence = check_sequence_in_path(sequence, attack_path, ip_address)
+                        if len(found_sequence) / len(sequence) > best_match:
+                            best_match = len(found_sequence) / len(sequence)
+                            best_found_sequence = found_sequence
+                    if best_match >= threshold:
+                        expected_value = get_expected_severity_level_for_sequence(sequence, criticality)
+                        all_severity_levels = [SEVERITY_LEVELS_MAPPING[criticality][tactic]
+                                               for item in best_found_sequence
+                                               for tactic in item['rule.mitre.tactic']]
+                        predicted_value = min(all_severity_levels)
+                        five_level_confusion_matrix["TP"][expected_value - 1][predicted_value - 1] += 1
+                    else:
+                        predicted_value = 5
+                        expected_value = get_expected_severity_level_for_sequence(sequence, criticality)
+                        five_level_confusion_matrix["FN"][expected_value - 1][predicted_value - 1] += 1
+                else:
+                    best_match = 0
+                    best_found_sequence = None
+                    for attack_path in attack_paths:
+                        found_sequence = check_sequence_in_path(sequence, attack_path, ip_address)
+                        if len(found_sequence) / len(sequence) > best_match:
+                            best_match = len(found_sequence) / len(sequence)
+                            best_found_sequence = found_sequence
+                    if best_match >= threshold:
+                        all_severity_levels = [SEVERITY_LEVELS_MAPPING[criticality][tactic]
+                                               for item in best_found_sequence
+                                               for tactic in item['rule.mitre.tactic']]
+                        predicted_value = min(all_severity_levels)
+                        expected_value = get_expected_severity_level_for_sequence(sequence, criticality)
+                        five_level_confusion_matrix["FP"][expected_value - 1][predicted_value - 1] += 1
+                    else:
+                        predicted_value = 5
+                        expected_value = get_expected_severity_level_for_sequence(sequence, criticality)
+                        five_level_confusion_matrix["TN"][expected_value - 1][predicted_value - 1] += 1
+        print(f"Threshold: {threshold}")
+        pprint(five_level_confusion_matrix)
+        print()
+
+
+def get_expected_severity_level_for_sequence(sequence, criticality):
+    """
+    This function determines severity value for a sequence of attack techniques
+    according to the criticality of asset that is impacted.
+    :param sequence: a sequence of attack techniques
+    :param criticality: criticality of asset that is impacted
+    :return:
+    """
+    for item in reversed(sequence):
+        if len(item['rule.mitre.id']) > 1:
+            raise ValueError("List has more than one item.")
+        if item['rule.mitre.id'][0] in TRUE_POSITIVE_IDS:
+            return min([SEVERITY_LEVELS_MAPPING[criticality][item['rule.mitre.tactic'][i]]
+                        for i in range(len(item['rule.mitre.tactic']))])
+    return 5

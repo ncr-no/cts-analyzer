@@ -4,6 +4,7 @@ from pprint import pprint
 import networkx as nx
 import utils
 
+# ARCS_FILE and VERTICES_FILE should be set to the location where the relevant files reside
 # ARCS_FILE = '/tmp/mulval_dir/ARCS.CSV'
 # VERTICES_FILE = '/tmp/mulval_dir/VERTICES.CSV'
 
@@ -181,7 +182,7 @@ def print_strategic_techniques(graph, attacker_vertex, goals):
         print("---------------------------------------------")
         print()
 
-        for path in nx.algorithms.all_simple_paths(graph, attacker_vertex, goal):
+        for path in nx.algorithms.all_simple_paths(graph, attacker_vertex, goal, cutoff=10):
             utils.determine_kill_chain_phases(graph, path)
             path_countermeasures = set()
 
@@ -249,6 +250,7 @@ def get_attack_path_techniques(graph, attacker_vertex, goals):
     for goal in goals:
         # cutoff=10 is feasible to compute
         for path in nx.algorithms.all_simple_paths(graph, attacker_vertex, goal, cutoff=10):
+            utils.determine_kill_chain_phases(graph, path)
             current_path = {"vertices": [], "lateral_movement": False, "ip_addresses": [], "lm_indices": []}
             current_index = 0
             current_path["lm_indices"].append(current_index)
