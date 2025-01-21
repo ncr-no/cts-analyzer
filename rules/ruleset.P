@@ -376,8 +376,8 @@ interaction_rule(
 /********* T1595 - Active Scanning ******/
 interaction_rule(
     (networkConnection(2, authentication, Host, Protocol, Port) :-
-      externalActor(untrusted_internet),
-      accessAllowed(untrusted_internet, Host, Protocol, Port),
+      externalActor(internet),
+      accessAllowed(internet, Host, Protocol, Port),
       networkService(Host, _, Protocol, Port, _)),
     rule_desc('T1595 - Active Scanning', 1.0)).
 

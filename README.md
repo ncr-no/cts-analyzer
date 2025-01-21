@@ -30,6 +30,8 @@ implementation.
   * File `sequences_sorted.json` contains evidence paths generated during the evaluation.
   * Files with suffix `with_ports` are variants containing port numbers.
 * Folder `rules` contains the ruleset created using the KCAG methodology described in the paper.
+The ruleset contains a version that extends rules used during evaluation by equality predicates in some attack rules. 
+The same evaluation results can be reproduced by omitting the equality predicates.
 
 # Implementation of the method
 The proof-of-concept implementation contains several files:
